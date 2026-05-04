@@ -1695,7 +1695,8 @@ let currentSort = 'smart';
 let recipeScores = new Map(); // recipeId -> { total, health, cost, ease, pantry, season, estimatedCost }
 
 // ── Sync state ─────────────────────────────────
-let syncConfig = JSON.parse(localStorage.getItem('syncConfig') || 'null');
+const SYNC_DEFAULTS = { url: 'https://recipe-pantry-sync.pbxxg99nbr.workers.dev', token: 'genevieats-sync-2026' };
+let syncConfig = JSON.parse(localStorage.getItem('syncConfig') || 'null') || SYNC_DEFAULTS;
 let syncInFlight = false;
 let syncDebounceTimer = null;
 
