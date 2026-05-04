@@ -1354,7 +1354,7 @@ body {
 
 /* ── Responsive ──────────────────────────────── */
 @media (max-width: 768px) {
-  .topbar { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
+  .topbar { flex-wrap: wrap; padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px; gap: 8px; }
   .topbar h1 { font-size: 16px; }
   .search-box { order: 3; flex-basis: 100%; max-width: none; }
   .layout { flex-direction: column; padding: 12px; }
