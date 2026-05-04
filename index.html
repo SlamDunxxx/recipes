@@ -1588,10 +1588,6 @@ body {
       <label>Worker URL</label>
       <input type="url" id="syncUrl" placeholder="https://recipe-pantry-sync.you.workers.dev">
     </div>
-    <div class="form-row">
-      <label>Token</label>
-      <input type="password" id="syncToken" placeholder="your-sync-token">
-    </div>
     <div class="form-actions">
       <button class="cancel-btn" onclick="closeSyncSettings()">Cancel</button>
       <button class="delete-btn" id="syncDisconnectBtn" onclick="disconnectSync()" style="display:none">Disconnect</button>
@@ -1695,7 +1691,7 @@ let currentSort = 'smart';
 let recipeScores = new Map(); // recipeId -> { total, health, cost, ease, pantry, season, estimatedCost }
 
 // ── Sync state ─────────────────────────────────
-const SYNC_DEFAULTS = { url: 'https://recipe-pantry-sync.pbxxg99nbr.workers.dev', token: 'genevieats-sync-2026' };
+const SYNC_DEFAULTS = { url: 'https://recipe-pantry-sync.pbxxg99nbr.workers.dev' };
 let syncConfig = JSON.parse(localStorage.getItem('syncConfig') || 'null') || SYNC_DEFAULTS;
 let syncInFlight = false;
 let syncDebounceTimer = null;
@@ -1723,10 +1719,7 @@ async function pushPantry() {
   try {
     const resp = await fetch(`${syncConfig.url}/pantry`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${syncConfig.token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: payload,
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -1750,7 +1743,7 @@ async function pullPantry() {
   showSyncStatus('Syncing…');
   try {
     const resp = await fetch(`${syncConfig.url}/pantry`, {
-      headers: { 'Authorization': `Bearer ${syncConfig.token}` },
+      headers: {},
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const remote = await resp.json();
@@ -1774,7 +1767,6 @@ async function pullPantry() {
 function openSyncSettings() {
   const overlay = document.getElementById('syncSettingsOverlay');
   document.getElementById('syncUrl').value = syncConfig?.url || '';
-  document.getElementById('syncToken').value = syncConfig?.token || '';
   const connected = !!syncConfig;
   document.getElementById('syncConnectedBanner').style.display = connected ? 'flex' : 'none';
   document.getElementById('syncDisconnectBtn').style.display = connected ? 'block' : 'none';
@@ -1792,9 +1784,8 @@ function closeSyncSettings() {
 
 async function saveSyncSettings() {
   const url = document.getElementById('syncUrl').value.trim().replace(/\/+$/, '');
-  const token = document.getElementById('syncToken').value.trim();
-  if (!url || !token) { alert('Both fields are required.'); return; }
-  syncConfig = { url, token };
+  if (!url) { alert('Worker URL is required.'); return; }
+  syncConfig = { url };
   localStorage.setItem('syncConfig', JSON.stringify(syncConfig));
   closeSyncSettings();
   await pullPantry();
@@ -2847,7 +2838,7 @@ function iCookedThis(recipeId) {
   if (syncConfig) {
     fetch(`${syncConfig.url}/history`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipe_id: recipeId }),
     }).then(async () => {
       const stats = await getWeeklyStats();
@@ -2974,7 +2965,7 @@ async function submitRating(rating) {
   try {
     await fetch(`${syncConfig.url}/history`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipe_id: pendingRating.recipeId, rating }),
     });
   } catch (e) { console.warn('Rating save failed:', e); }
@@ -2992,7 +2983,7 @@ async function getWeeklyStats() {
   if (!syncConfig) return null;
   try {
     const resp = await fetch(`${syncConfig.url}/history?limit=50`, {
-      headers: { 'Authorization': `Bearer ${syncConfig.token}` },
+      headers: {},
     });
     if (!resp.ok) return null;
     const history = await resp.json();
@@ -3060,7 +3051,7 @@ async function loadMealPlan() {
   if (syncConfig) {
     try {
       const resp = await fetch(`${syncConfig.url}/meal-plan?start=${start}&end=${end}`, {
-        headers: { 'Authorization': `Bearer ${syncConfig.token}` },
+        headers: {},
       });
       if (resp.ok) mealPlan = await resp.json();
     } catch (e) { console.warn('Meal plan load failed:', e); }
@@ -3209,7 +3200,7 @@ async function removeMeal(dateStr, mealType) {
     try {
       await fetch(`${syncConfig.url}/meal-plan`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan_date: dateStr, meal_type: mealType }),
       });
     } catch (e) { console.warn('Remove meal failed:', e); }
@@ -3293,7 +3284,7 @@ async function pickRecipe(recipeId) {
     try {
       await fetch(`${syncConfig.url}/meal-plan`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipe_id: recipeId, plan_date: ctx.date, meal_type: ctx.mealType }),
       });
     } catch (e) { console.warn('Save meal plan failed:', e); }
@@ -3336,10 +3327,7 @@ async function openSuggestPanel() {
   try {
     const resp = await fetch(`${syncConfig.url}/recommend`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${syncConfig.token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pantry: pantryItems.map(p => ({ name: p.name, expiration: p.expiration || null })),
         seasonalProduce,
@@ -3592,7 +3580,7 @@ async function savePrefs() {
     try {
       await fetch(`${syncConfig.url}/preferences`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPrefs),
       });
     } catch (e) { console.warn('Prefs save failed:', e); }
