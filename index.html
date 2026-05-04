@@ -3610,8 +3610,15 @@ loadRecipes();
 
 setTimeout(checkExpiringItems, 3000);
 
-// Register service worker
-if ('serviceWorker' in navigator) {
+// Cache clear escape hatch: ?clear=1
+if (new URLSearchParams(location.search).has('clear')) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  }
+  caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  history.replaceState(null, '', location.pathname);
+  location.reload();
+} else if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
