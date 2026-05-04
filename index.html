@@ -1742,9 +1742,7 @@ async function pullPantry() {
   if (!syncConfig) return;
   showSyncStatus('Syncing…');
   try {
-    const resp = await fetch(`${syncConfig.url}/pantry`, {
-      headers: {},
-    });
+    const resp = await fetch(`${syncConfig.url}/pantry`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const remote = await resp.json();
     const localMod = parseInt(localStorage.getItem('syncLastPush') || '0');
@@ -2982,9 +2980,7 @@ function skipRating() {
 async function getWeeklyStats() {
   if (!syncConfig) return null;
   try {
-    const resp = await fetch(`${syncConfig.url}/history?limit=50`, {
-      headers: {},
-    });
+    const resp = await fetch(`${syncConfig.url}/history?limit=50`);
     if (!resp.ok) return null;
     const history = await resp.json();
     const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
@@ -3050,9 +3046,7 @@ async function loadMealPlan() {
 
   if (syncConfig) {
     try {
-      const resp = await fetch(`${syncConfig.url}/meal-plan?start=${start}&end=${end}`, {
-        headers: {},
-      });
+      const resp = await fetch(`${syncConfig.url}/meal-plan?start=${start}&end=${end}`);
       if (resp.ok) mealPlan = await resp.json();
     } catch (e) { console.warn('Meal plan load failed:', e); }
   }
