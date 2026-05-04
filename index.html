@@ -1,0 +1,3619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2d5016">
+<title>Recipe Search</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #faf9f6;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #6b6b6b;
+  --accent: #2d5016;
+  --accent-light: #e8f0e0;
+  --accent-hover: #3d6b20;
+  --border: #e5e5e5;
+  --tag-bg: #f0f0f0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-hover: 0 4px 12px rgba(0,0,0,0.12);
+  --radius: 10px;
+  --pantry-ready: #2d5016;
+  --pantry-almost: #b8860b;
+  --pantry-missing: #cc3333;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Top bar ─────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--accent);
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.topbar h1 {
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.search-box {
+  flex: 1;
+  max-width: 500px;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  background: rgba(255,255,255,0.2);
+  color: white;
+  outline: none;
+  transition: background 0.2s;
+}
+.search-box input::placeholder { color: rgba(255,255,255,0.6); }
+.search-box input:focus { background: rgba(255,255,255,0.3); }
+.search-box::before {
+  content: '🔍';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+}
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.btn {
+  padding: 7px 14px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  background: transparent;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.btn:hover { background: rgba(255,255,255,0.15); }
+.btn.active {
+  background: white;
+  color: var(--accent);
+  border-color: white;
+}
+
+/* ── Layout ──────────────────────────────────── */
+.layout {
+  display: flex;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 20px;
+}
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Filters ─────────────────────────────────── */
+.filter-group {
+  margin-bottom: 16px;
+}
+.filter-group h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.filter-group select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--card);
+  color: var(--text);
+}
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.checkbox-group input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+.stats {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+
+/* ── Pantry panel ────────────────────────────── */
+.pantry-panel {
+  display: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.pantry-panel.visible { display: block; }
+.pantry-panel h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pantry-quick-add {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.pantry-quick-add input {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.pantry-quick-add button {
+  padding: 7px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pantry-item-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+.pantry-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--bg);
+  font-size: 13px;
+  position: relative;
+}
+.pantry-item:hover { background: var(--bg); border-radius: 6px; }
+.pantry-item-info { flex: 1; min-width: 0; }
+.pantry-item-name {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.pantry-item-details {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.pantry-item-details span { white-space: nowrap; }
+.pantry-item-exp {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.pantry-item-exp.ok { background: #e8f5e9; color: #2e7d32; }
+.pantry-item-exp.soon { background: #fff3e0; color: #e65100; }
+.pantry-item-exp.expired { background: #ffebee; color: #c62828; }
+.pantry-item-cat {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--tag-bg);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.pantry-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.pantry-item-actions button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pantry-item-actions button:hover { background: var(--border); }
+.pantry-filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.pantry-filter-bar select, .pantry-filter-bar input {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--card);
+}
+.pantry-filter-bar input { flex: 1; min-width: 100px; }
+.pantry-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+}
+.pantry-tab {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pantry-tab.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  font-weight: 600;
+}
+.pantry-tab .count {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+}
+.pantry-tab.ready .count { color: var(--pantry-ready); }
+.pantry-tab.almost .count { color: var(--pantry-almost); }
+.reminder-btn-pantry {
+  margin-top: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.reminder-btn-pantry:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* ── Pantry edit modal ───────────────────────── */
+.pantry-edit-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.pantry-edit-overlay.visible { display: flex; }
+.pantry-edit-form {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.pantry-edit-form h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+.form-row {
+  margin-bottom: 12px;
+}
+.form-row label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.form-row input, .form-row select, .form-row textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.form-row textarea { height: 60px; resize: vertical; }
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.form-actions button {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.form-actions .save-btn {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.form-actions .delete-btn {
+  background: #ffebee;
+  color: #c62828;
+  border-color: #ffcdd2;
+}
+.form-actions .cancel-btn {
+  background: var(--card);
+}
+
+/* ── Recipe grid ─────────────────────────────── */
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.recipe-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s, transform 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+.recipe-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+.card-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: var(--tag-bg);
+}
+.card-image.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  background: linear-gradient(135deg, var(--accent-light), var(--tag-bg));
+}
+.card-body {
+  padding: 14px;
+}
+.card-source {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 4px 0 8px;
+  line-height: 1.3;
+}
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.card-meta span { display: flex; align-items: center; gap: 3px; }
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.tag {
+  padding: 2px 8px;
+  background: var(--tag-bg);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.tag.veg { background: #e8f5e9; color: #2e7d32; }
+.tag.vegan { background: #e0f2f1; color: #00695c; }
+.tag.gf { background: #fff3e0; color: #e65100; }
+
+/* Pantry match indicator */
+.pantry-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  z-index: 2;
+}
+.pantry-badge.ready { background: var(--pantry-ready); }
+.pantry-badge.almost { background: var(--pantry-almost); }
+.missing-list {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: #fff8e1;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--pantry-almost);
+}
+.missing-list strong { font-weight: 600; }
+
+/* ── Detail modal ────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.visible { display: flex; }
+.modal {
+  background: var(--card);
+  border-radius: 12px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-header {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 1;
+}
+.modal-header h2 { font-size: 20px; line-height: 1.3; flex: 1; }
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--tag-bg);
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.modal-body { padding: 20px; }
+.modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.modal-meta dt { color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
+.modal-meta dd { font-weight: 600; margin-top: 2px; }
+.modal-section h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: 16px 0 8px;
+}
+.modal-section ul {
+  list-style: none;
+  padding: 0;
+}
+.modal-section li {
+  padding: 4px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--bg);
+}
+.modal-section li:last-child { border-bottom: none; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.modal-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.2s;
+}
+.modal-btn:hover { background: var(--bg); }
+.modal-btn.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.modal-btn.primary:hover { background: var(--accent-hover); }
+
+/* ── Store badges ─────────────────────────────── */
+.store-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.ingredient-with-store {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ingredient-with-store .stores {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.shopping-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f8f8;
+  border-radius: 8px;
+}
+.shopping-section h4 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+.shopping-by-store {
+  margin-top: 8px;
+}
+.store-group {
+  margin-bottom: 10px;
+}
+.store-group-header {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  margin-bottom: 4px;
+  display: inline-block;
+}
+.store-group ul {
+  list-style: none;
+  padding-left: 8px;
+  font-size: 13px;
+}
+.store-group li { padding: 2px 0; }
+
+/* ── Smart badges ────────────────────────────── */
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-cost {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+.badge-cost.free {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.badge-leaf {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.badge-season {
+  background: #fff8e1;
+  color: #f57f17;
+}
+.badge-cal {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+.badge-score {
+  background: var(--tag-bg);
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 10px;
+}
+
+/* ── Sort controls ───────────────────────────── */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.sort-bar label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sort-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.sort-pill {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.sort-pill:hover { border-color: var(--accent); color: var(--accent); }
+.sort-pill.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* ── Empty state ─────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 18px; margin-bottom: 6px; color: var(--text); }
+
+/* ── Sync indicator ──────────────────────────── */
+.sync-status {
+  font-size: 11px;
+  opacity: 0.7;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: white;
+}
+.sync-status.visible { display: flex; }
+.sync-status.error { color: #ffb4b4; opacity: 1; }
+.sync-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #7dff7d;
+}
+.sync-status.error .sync-dot { background: #ff6b6b; }
+
+/* ── Sync settings modal ────────────────────── */
+.sync-settings-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.sync-settings-overlay.visible { display: flex; }
+.sync-settings-form {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.sync-settings-form h3 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.sync-settings-form .subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.sync-settings-form .form-row input {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+}
+.sync-connected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #2e7d32;
+  margin-bottom: 12px;
+}
+
+/* ── Toast notifications ─────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  padding: 10px 20px;
+  background: var(--text);
+  color: white;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  opacity: 0;
+  transform: translateY(12px);
+  animation: toastIn 0.3s ease forwards, toastOut 0.3s ease 2.7s forwards;
+  pointer-events: auto;
+  max-width: 90vw;
+  text-align: center;
+}
+.toast.success { background: #2e7d32; }
+.toast.warm { background: #5d4037; }
+@keyframes toastIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* ── Rating stars ────────────────────────────── */
+.rating-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.rating-prompt p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.star-row {
+  display: flex;
+  gap: 6px;
+}
+.star-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.star-btn:hover { transform: scale(1.2); }
+.star-btn.filled { filter: none; }
+.star-btn.empty { opacity: 0.3; }
+.rating-skip {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 8px;
+}
+
+/* ── Suggest panel ──────────────────────────── */
+.suggest-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 250;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.suggest-overlay.visible { display: flex; }
+.suggest-modal {
+  background: var(--card);
+  border-radius: 12px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.suggest-header {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1;
+}
+.suggest-header h2 { font-size: 18px; font-weight: 600; }
+.suggest-body { padding: 16px 20px; }
+.suggest-note {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  font-style: italic;
+  line-height: 1.4;
+}
+.suggest-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+  transition: box-shadow 0.2s;
+}
+.suggest-card:hover { box-shadow: var(--shadow-hover); }
+.suggest-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.suggest-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  color: var(--accent);
+}
+.suggest-card-title:hover { text-decoration: underline; }
+.suggest-card-day {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.suggest-card-reasoning {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.suggest-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.suggest-card-actions {
+  display: flex;
+  gap: 6px;
+}
+.suggest-card-actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.suggest-card-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.suggest-card-actions button.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.suggest-card-actions button.primary:hover { background: var(--accent-hover); }
+.suggest-error {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+}
+.suggest-error .icon { font-size: 36px; margin-bottom: 8px; }
+.suggest-skeleton {
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.skel-line {
+  height: 14px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.skel-line.short { width: 60%; }
+.skel-line.medium { width: 85%; }
+.skel-line:last-child { margin-bottom: 0; }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Meal planner ───────────────────────────── */
+.planner-view {
+  display: none;
+}
+.planner-view.visible {
+  display: block;
+}
+.planner-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.planner-week-nav button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.planner-week-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.planner-week-label {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+}
+.planner-week-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.planner-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.planner-day {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s;
+}
+.planner-day:hover { box-shadow: var(--shadow-hover); }
+.planner-day.today { border-color: var(--accent); border-width: 2px; }
+.planner-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.planner-day-name {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.planner-day-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.planner-day.today .planner-day-name { color: var(--accent); }
+.planner-meal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.planner-meal-card {
+  background: var(--accent-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4px;
+}
+.planner-meal-card:hover { background: #d4e8c4; }
+.planner-meal-card .remove-meal {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.planner-meal-card .remove-meal:hover { color: #c62828; }
+.planner-add-btn {
+  width: 100%;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: auto;
+}
+.planner-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.planner-shopping {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.planner-shopping h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.planner-shopping-list {
+  list-style: none;
+}
+.planner-shopping-list li {
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.planner-shopping-list li:last-child { border-bottom: none; }
+.planner-shopping-store {
+  margin-bottom: 12px;
+}
+.planner-shopping-store h4 {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.planner-shopping-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.planner-shopping-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.planner-shopping-actions button {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.planner-shopping-actions button:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* ── Recipe picker modal ────────────────────── */
+.picker-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 260;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.picker-overlay.visible { display: flex; }
+.picker-modal {
+  background: var(--card);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.picker-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.picker-header h3 { font-size: 15px; font-weight: 600; }
+.picker-search {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.picker-search input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.picker-item:hover { background: var(--bg); }
+.picker-item-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--tag-bg);
+  flex-shrink: 0;
+}
+.picker-item-info { flex: 1; min-width: 0; }
+.picker-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.picker-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Haptics + transitions ──────────────────── */
+.haptic-tap {
+  animation: microBounce 100ms ease-out;
+}
+@keyframes microBounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+.modal-overlay, .suggest-overlay, .picker-overlay, .pantry-edit-overlay, .sync-settings-overlay {
+  display: flex !important;
+  transition: opacity 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.modal-overlay.visible, .suggest-overlay.visible, .picker-overlay.visible,
+.pantry-edit-overlay.visible, .sync-settings-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal, .suggest-modal, .picker-modal, .pantry-edit-form, .sync-settings-form {
+  transition: transform 0.2s ease;
+  transform: translateY(12px);
+}
+.visible .modal, .visible .suggest-modal, .visible .picker-modal,
+.visible .pantry-edit-form, .visible .sync-settings-form {
+  transform: translateY(0);
+}
+
+/* ── Preferences modal ─────────────────────── */
+.prefs-overlay {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  transition: opacity 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.prefs-overlay.visible { opacity: 1; pointer-events: auto; }
+.prefs-form {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease;
+  transform: translateY(12px);
+}
+.prefs-overlay.visible .prefs-form { transform: translateY(0); }
+.prefs-form h3 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.prefs-form .subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width: 768px) {
+  .topbar { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
+  .topbar h1 { font-size: 16px; }
+  .search-box { order: 3; flex-basis: 100%; max-width: none; }
+  .layout { flex-direction: column; padding: 12px; }
+  .sidebar { width: 100%; }
+  .recipe-grid { grid-template-columns: 1fr; }
+  .modal { max-height: 95vh; border-radius: 12px 12px 0 0; }
+  .planner-strip { grid-template-columns: 1fr; }
+  .planner-day { min-height: 60px; flex-direction: row; align-items: center; gap: 10px; }
+  .planner-day-header { margin-bottom: 0; min-width: 50px; }
+  .planner-meal { flex-direction: row; flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1 id="topbarTitle">Recipes</h1>
+  <div class="search-box">
+    <input type="text" id="search" placeholder="Search recipes, ingredients..." autocomplete="off">
+  </div>
+  <div class="topbar-actions">
+    <button class="btn" id="suggestBtn">Suggest</button>
+    <button class="btn" id="planBtn">Plan</button>
+    <button class="btn" id="pantryToggle">Pantry Mode</button>
+    <button class="btn" id="prefsBtn" title="Preferences">☰</button>
+    <button class="btn" id="syncSettingsBtn" title="Sync settings">⚙</button>
+    <span class="sync-status" id="syncStatus"><span class="sync-dot"></span><span id="syncLabel">Synced</span></span>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="pantry-panel" id="pantryPanel">
+      <h3>
+        My Pantry
+        <span style="font-size:12px;color:var(--text-muted);font-weight:400" id="pantryCount"></span>
+      </h3>
+      <div class="pantry-quick-add">
+        <input type="text" id="pantryQuickAdd" placeholder="Add ingredient..." autocomplete="off">
+        <button onclick="quickAddPantryItem()">Add</button>
+        <button onclick="openPantryEdit()" style="background:var(--accent-light);color:var(--accent);border-color:var(--accent)">+ Detail</button>
+      </div>
+      <div class="pantry-filter-bar">
+        <input type="text" id="pantrySearch" placeholder="Filter pantry...">
+        <select id="pantryCatFilter">
+          <option value="">All</option>
+          <option value="produce">Produce</option>
+          <option value="dairy">Dairy</option>
+          <option value="protein">Protein</option>
+          <option value="grains">Grains</option>
+          <option value="spices">Spices</option>
+          <option value="condiments">Condiments</option>
+          <option value="canned">Canned</option>
+          <option value="frozen">Frozen</option>
+          <option value="baking">Baking</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="pantry-item-list" id="pantryList"></div>
+      <div class="pantry-tabs" id="pantryTabs">
+        <div class="pantry-tab ready active" data-filter="ready">
+          <span class="count" id="readyCount">0</span>
+          Ready
+        </div>
+        <div class="pantry-tab almost" data-filter="almost">
+          <span class="count" id="almostCount">0</span>
+          Almost
+        </div>
+        <div class="pantry-tab" data-filter="all">
+          <span class="count" id="allCount">0</span>
+          All
+        </div>
+      </div>
+      <button class="reminder-btn-pantry" id="addMissingToReminders" style="display:none">
+        Add missing ingredients to Reminders
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <h3>Source</h3>
+      <select id="filterSource"><option value="">All sources</option></select>
+    </div>
+    <div class="filter-group">
+      <h3>Cuisine</h3>
+      <select id="filterCuisine"><option value="">All cuisines</option></select>
+    </div>
+    <div class="filter-group">
+      <h3>Max time</h3>
+      <select id="filterTime">
+        <option value="">Any time</option>
+        <option value="15">Under 15 min</option>
+        <option value="30">Under 30 min</option>
+        <option value="45">Under 45 min</option>
+        <option value="60">Under 1 hour</option>
+        <option value="120">Under 2 hours</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <h3>Difficulty</h3>
+      <select id="filterDifficulty">
+        <option value="">Any difficulty</option>
+        <option value="Easy">Easy</option>
+        <option value="Medium">Medium</option>
+        <option value="Hard">Hard</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <h3>Dietary</h3>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="filterVegetarian"> Vegetarian</label>
+        <label><input type="checkbox" id="filterVegan"> Vegan</label>
+        <label><input type="checkbox" id="filterGlutenFree"> Gluten-free</label>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </aside>
+
+  <div class="main">
+    <div class="sort-bar" id="sortBar">
+      <label>Sort</label>
+      <div class="sort-pills">
+        <button class="sort-pill active" data-sort="smart">Smart</button>
+        <button class="sort-pill" data-sort="cheapest">Cheapest</button>
+        <button class="sort-pill" data-sort="quickest">Quickest</button>
+        <button class="sort-pill" data-sort="healthiest">Healthiest</button>
+      </div>
+    </div>
+    <div class="recipe-grid" id="grid"></div>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="icon">🍽️</div>
+      <h3>No recipes found</h3>
+      <p>Try adjusting your search or filters.</p>
+    </div>
+
+    <!-- Meal planner view (toggled by Plan button) -->
+    <div class="planner-view" id="plannerView">
+      <div class="planner-week-nav">
+        <button id="plannerPrev" title="Previous week">&larr;</button>
+        <span class="planner-week-label" id="plannerWeekLabel"></span>
+        <span class="planner-week-summary" id="plannerWeekSummary"></span>
+        <button id="plannerNext" title="Next week">&rarr;</button>
+      </div>
+      <div class="planner-strip" id="plannerStrip"></div>
+      <div class="planner-shopping" id="plannerShopping">
+        <h3>Shopping List <span id="shoppingCount" style="font-weight:400;font-size:12px;color:var(--text-muted)"></span></h3>
+        <div id="shoppingListBody">
+          <div class="planner-shopping-empty">Add meals to your plan to generate a shopping list.</div>
+        </div>
+        <div class="planner-shopping-actions" id="shoppingActions" style="display:none">
+          <button onclick="copyShoppingList()">Copy list</button>
+          <button onclick="sendShoppingToReminders()">Send to Reminders</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recipe picker modal -->
+<div class="picker-overlay" id="pickerOverlay">
+  <div class="picker-modal">
+    <div class="picker-header">
+      <h3 id="pickerTitle">Choose a recipe</h3>
+      <button class="modal-close" id="pickerClose">&times;</button>
+    </div>
+    <div class="picker-search">
+      <input type="text" id="pickerSearch" placeholder="Search recipes..." autocomplete="off">
+    </div>
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+</div>
+
+<!-- Pantry edit modal -->
+<div class="pantry-edit-overlay" id="pantryEditOverlay">
+  <div class="pantry-edit-form">
+    <h3 id="pantryEditTitle">Add Item</h3>
+    <input type="hidden" id="pantryEditId">
+    <div class="form-row">
+      <label>Ingredient</label>
+      <input type="text" id="peditName" placeholder="e.g. soy sauce" required>
+    </div>
+    <div class="form-row">
+      <label>Category</label>
+      <select id="peditCategory">
+        <option value="">Uncategorized</option>
+        <option value="produce">Produce</option>
+        <option value="dairy">Dairy</option>
+        <option value="protein">Protein</option>
+        <option value="grains">Grains</option>
+        <option value="spices">Spices</option>
+        <option value="condiments">Condiments</option>
+        <option value="canned">Canned</option>
+        <option value="frozen">Frozen</option>
+        <option value="baking">Baking</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Brand</label>
+      <input type="text" id="peditBrand" placeholder="e.g. Kikkoman">
+    </div>
+    <div class="form-row">
+      <label>Amount</label>
+      <input type="text" id="peditAmount" placeholder="e.g. 1 bottle, 500g">
+    </div>
+    <div class="form-row">
+      <label>Expiration date</label>
+      <input type="date" id="peditExpiration">
+    </div>
+    <div class="form-row">
+      <label>Notes</label>
+      <textarea id="peditNotes" placeholder="e.g. low sodium, opened 4/20"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="cancel-btn" onclick="closePantryEdit()">Cancel</button>
+      <button class="delete-btn" id="peditDelete" onclick="deletePantryItem()" style="display:none">Delete</button>
+      <button class="save-btn" onclick="savePantryItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync settings modal -->
+<div class="sync-settings-overlay" id="syncSettingsOverlay">
+  <div class="sync-settings-form">
+    <h3>Pantry Sync</h3>
+    <p class="subtitle">Connect to your Cloudflare Worker to sync pantry data across devices.</p>
+    <div id="syncConnectedBanner" class="sync-connected" style="display:none">
+      <span class="sync-dot" style="width:8px;height:8px"></span>
+      <span>Connected — last synced <span id="syncLastTime">never</span></span>
+    </div>
+    <div class="form-row">
+      <label>Worker URL</label>
+      <input type="url" id="syncUrl" placeholder="https://recipe-pantry-sync.you.workers.dev">
+    </div>
+    <div class="form-row">
+      <label>Token</label>
+      <input type="password" id="syncToken" placeholder="your-sync-token">
+    </div>
+    <div class="form-actions">
+      <button class="cancel-btn" onclick="closeSyncSettings()">Cancel</button>
+      <button class="delete-btn" id="syncDisconnectBtn" onclick="disconnectSync()" style="display:none">Disconnect</button>
+      <button class="save-btn" onclick="saveSyncSettings()">Save & Sync</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Rating modal -->
+<div class="modal-overlay" id="ratingModal">
+  <div class="modal" style="max-width:340px">
+    <div class="rating-prompt">
+      <p id="ratingTitle">How was it?</p>
+      <div class="star-row" id="starRow"></div>
+      <button class="rating-skip" id="ratingSkip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- Suggest panel -->
+<div class="suggest-overlay" id="suggestOverlay">
+  <div class="suggest-modal">
+    <div class="suggest-header">
+      <h2>Meal Suggestions</h2>
+      <button class="modal-close" id="suggestClose">&times;</button>
+    </div>
+    <div class="suggest-body" id="suggestBody">
+      <div class="suggest-note" id="suggestNote" style="display:none"></div>
+      <div id="suggestCards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Preferences modal -->
+<div class="prefs-overlay" id="prefsOverlay">
+  <div class="prefs-form">
+    <h3>Preferences</h3>
+    <p class="subtitle">Customize how recipes are ranked and suggested.</p>
+    <div class="form-row">
+      <label>Diet mode</label>
+      <select id="prefDiet">
+        <option value="vegetarian-forward">Vegetarian-forward</option>
+        <option value="vegetarian">Vegetarian only</option>
+        <option value="vegan">Vegan only</option>
+        <option value="any">Any diet</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Max meat meals per week</label>
+      <select id="prefMeat">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="7">No limit</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Max weeknight cooking time (minutes)</label>
+      <select id="prefTime">
+        <option value="30">30</option>
+        <option value="45" selected>45</option>
+        <option value="60">60</option>
+        <option value="90">90</option>
+        <option value="120">No limit</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="cancel-btn" onclick="closePrefs()">Cancel</button>
+      <button class="save-btn" onclick="savePrefs()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle"></h2>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+let ALL_RECIPES = [];
+let pantryMode = false;
+let pantryFilter = 'all';
+let pantryItems = []; // { id, name, brand, amount, category, expiration, notes }
+let pantryIngredients = []; // derived: just lowercase names for matching
+let pantryMatches = new Map(); // recipeId -> { matched, missing }
+let priceMap = {}; // ingredient -> { price_cents, unit }
+let seasonalProduce = []; // array of ingredient names in season this month
+let nutritionEstimates = {}; // ingredient -> { calories, protein_g, carbs_g, fat_g, fiber_g }
+let currentSort = 'smart';
+let recipeScores = new Map(); // recipeId -> { total, health, cost, ease, pantry, season, estimatedCost }
+
+// ── Sync state ─────────────────────────────────
+let syncConfig = JSON.parse(localStorage.getItem('syncConfig') || 'null');
+let syncInFlight = false;
+let syncDebounceTimer = null;
+
+function getSyncStatus() { return document.getElementById('syncStatus'); }
+
+function showSyncStatus(msg, isError) {
+  const el = getSyncStatus();
+  el.classList.add('visible');
+  el.classList.toggle('error', !!isError);
+  document.getElementById('syncLabel').textContent = msg;
+  if (!isError) {
+    setTimeout(() => { el.classList.remove('visible'); }, 3000);
+  }
+}
+
+async function pushPantry() {
+  if (!syncConfig || syncInFlight) return;
+  syncInFlight = true;
+  showSyncStatus('Syncing…');
+  const payload = JSON.stringify({
+    items: pantryItems,
+    lastModified: Date.now(),
+  });
+  try {
+    const resp = await fetch(`${syncConfig.url}/pantry`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${syncConfig.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: payload,
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    localStorage.setItem('syncLastPush', String(Date.now()));
+    showSyncStatus('Synced');
+  } catch (e) {
+    console.warn('Sync push failed:', e);
+    showSyncStatus('Sync failed', true);
+  } finally {
+    syncInFlight = false;
+  }
+}
+
+function debouncedPush() {
+  clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(pushPantry, 1000);
+}
+
+async function pullPantry() {
+  if (!syncConfig) return;
+  showSyncStatus('Syncing…');
+  try {
+    const resp = await fetch(`${syncConfig.url}/pantry`, {
+      headers: { 'Authorization': `Bearer ${syncConfig.token}` },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const remote = await resp.json();
+    const localMod = parseInt(localStorage.getItem('syncLastPush') || '0');
+    if (remote.lastModified && remote.lastModified > localMod && remote.items) {
+      pantryItems = remote.items;
+      savePantryToStorage();
+      syncPantryIngredients();
+      renderPantryList();
+      render();
+    } else if (pantryItems.length > 0 && (!remote.lastModified || localMod > remote.lastModified)) {
+      await pushPantry();
+    }
+    showSyncStatus('Synced');
+  } catch (e) {
+    console.warn('Sync pull failed:', e);
+    showSyncStatus('Sync failed', true);
+  }
+}
+
+function openSyncSettings() {
+  const overlay = document.getElementById('syncSettingsOverlay');
+  document.getElementById('syncUrl').value = syncConfig?.url || '';
+  document.getElementById('syncToken').value = syncConfig?.token || '';
+  const connected = !!syncConfig;
+  document.getElementById('syncConnectedBanner').style.display = connected ? 'flex' : 'none';
+  document.getElementById('syncDisconnectBtn').style.display = connected ? 'block' : 'none';
+  if (connected) {
+    const last = localStorage.getItem('syncLastPush');
+    document.getElementById('syncLastTime').textContent = last
+      ? new Date(parseInt(last)).toLocaleString() : 'never';
+  }
+  overlay.classList.add('visible');
+}
+
+function closeSyncSettings() {
+  document.getElementById('syncSettingsOverlay').classList.remove('visible');
+}
+
+async function saveSyncSettings() {
+  const url = document.getElementById('syncUrl').value.trim().replace(/\/+$/, '');
+  const token = document.getElementById('syncToken').value.trim();
+  if (!url || !token) { alert('Both fields are required.'); return; }
+  syncConfig = { url, token };
+  localStorage.setItem('syncConfig', JSON.stringify(syncConfig));
+  closeSyncSettings();
+  await pullPantry();
+}
+
+function disconnectSync() {
+  syncConfig = null;
+  localStorage.removeItem('syncConfig');
+  localStorage.removeItem('syncLastPush');
+  getSyncStatus().classList.remove('visible');
+  closeSyncSettings();
+}
+
+const PANTRY_CATEGORIES = {
+  produce: 'Produce', dairy: 'Dairy', protein: 'Protein',
+  grains: 'Grains', spices: 'Spices', condiments: 'Condiments',
+  canned: 'Canned', frozen: 'Frozen', baking: 'Baking', other: 'Other',
+};
+let storeData = { stores: [], ingredients: {} };
+let storeMap = {}; // id -> store object
+
+// ── Load data ───────────────────────────────────
+async function loadRecipes() {
+  try {
+    const [recipesResp, storesResp, pricesResp, seasonsResp, nutritionResp] = await Promise.all([
+      fetch('recipes.json'),
+      fetch('stores.json'),
+      fetch('prices.json').catch(() => null),
+      fetch('seasons.json').catch(() => null),
+      fetch('nutrition_estimates.json').catch(() => null),
+    ]);
+    ALL_RECIPES = await recipesResp.json();
+    storeData = await storesResp.json();
+    storeMap = {};
+    (storeData.stores || []).forEach(s => { storeMap[s.id] = s; });
+    if (pricesResp && pricesResp.ok) priceMap = await pricesResp.json();
+    if (seasonsResp && seasonsResp.ok) {
+      const seasons = await seasonsResp.json();
+      const month = new Date().toLocaleString('en-US', { month: 'long' }).toLowerCase();
+      seasonalProduce = (seasons[month] || []).map(s => s.toLowerCase());
+    }
+    if (nutritionResp && nutritionResp.ok) nutritionEstimates = await nutritionResp.json();
+  } catch (e) {
+    console.warn('Failed to load data:', e);
+  }
+  initFilters();
+  loadPantry();
+  computeAllScores();
+  render();
+  pullPantry();
+}
+
+function getStoresForIngredient(ingredientText) {
+  if (!ingredientText || !storeData.ingredients) return [];
+  const lower = ingredientText.toLowerCase();
+  for (const [key, storeIds] of Object.entries(storeData.ingredients)) {
+    if (lower.includes(key) || key.includes(lower)) {
+      return storeIds.map(id => storeMap[id]).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function renderStoreBadges(stores) {
+  if (!stores || stores.length === 0) return '';
+  return stores.slice(0, 3).map(s =>
+    `<span class="store-badge" style="background:${s.color}">${escHtml(s.short)}</span>`
+  ).join('');
+}
+
+// ── Filters ─────────────────────────────────────
+function initFilters() {
+  const sources = [...new Set(ALL_RECIPES.map(r => r.source).filter(Boolean))].sort();
+  const cuisines = [...new Set(ALL_RECIPES.map(r => r.cuisine).filter(Boolean))].sort();
+
+  const srcSel = document.getElementById('filterSource');
+  sources.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    srcSel.appendChild(opt);
+  });
+
+  const cuisineSel = document.getElementById('filterCuisine');
+  cuisines.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    cuisineSel.appendChild(opt);
+  });
+}
+
+function getFilters() {
+  return {
+    search: document.getElementById('search').value.toLowerCase().trim(),
+    source: document.getElementById('filterSource').value,
+    cuisine: document.getElementById('filterCuisine').value,
+    maxTime: parseInt(document.getElementById('filterTime').value) || null,
+    difficulty: document.getElementById('filterDifficulty').value,
+    vegetarian: document.getElementById('filterVegetarian').checked,
+    vegan: document.getElementById('filterVegan').checked,
+    glutenFree: document.getElementById('filterGlutenFree').checked,
+  };
+}
+
+function matchesFilters(recipe, filters) {
+  if (filters.search) {
+    const haystack = [
+      recipe.title,
+      recipe.source,
+      recipe.cuisine,
+      recipe.description,
+      ...(recipe.ingredients_raw || []),
+    ].join(' ').toLowerCase();
+    const terms = filters.search.split(/\s+/);
+    if (!terms.every(t => haystack.includes(t))) return false;
+  }
+  if (filters.source && recipe.source !== filters.source) return false;
+  if (filters.cuisine && recipe.cuisine !== filters.cuisine) return false;
+  if (filters.maxTime && (recipe.total_time_min || 999) > filters.maxTime) return false;
+  if (filters.difficulty && recipe.difficulty !== filters.difficulty) return false;
+  if (filters.vegetarian && !recipe.vegetarian) return false;
+  if (filters.vegan && !recipe.vegan) return false;
+  if (filters.glutenFree && !recipe.gluten_free) return false;
+  return true;
+}
+
+// ── Pantry CRUD ─────────────────────────────────
+function loadPantry() {
+  // Migrate from old textarea format
+  const oldData = localStorage.getItem('pantryIngredients');
+  if (oldData && !localStorage.getItem('pantryItems')) {
+    const lines = oldData.split('\n').map(s => s.trim()).filter(s => s.length > 1);
+    pantryItems = lines.map(name => ({
+      id: crypto.randomUUID(), name, brand: '', amount: '',
+      category: '', expiration: '', notes: '',
+    }));
+    savePantryToStorage();
+    localStorage.removeItem('pantryIngredients');
+  } else {
+    const saved = localStorage.getItem('pantryItems');
+    pantryItems = saved ? JSON.parse(saved) : [];
+  }
+  syncPantryIngredients();
+  renderPantryList();
+}
+
+function savePantryToStorage() {
+  localStorage.setItem('pantryItems', JSON.stringify(pantryItems));
+}
+
+function syncPantryIngredients() {
+  pantryIngredients = pantryItems.map(i => i.name.toLowerCase().trim()).filter(s => s.length > 1);
+  computePantryMatches();
+  computeAllScores();
+}
+
+function quickAddPantryItem() {
+  const input = document.getElementById('pantryQuickAdd');
+  const name = input.value.trim();
+  if (!name) return;
+  pantryItems.push({
+    id: crypto.randomUUID(), name, brand: '', amount: '',
+    category: guessCategory(name), expiration: '', notes: '',
+  });
+  savePantryToStorage();
+  syncPantryIngredients();
+  renderPantryList();
+  input.value = '';
+  render();
+  debouncedPush();
+}
+
+function guessCategory(name) {
+  const n = name.toLowerCase();
+  const map = {
+    produce: /lettuce|tomato|onion|garlic|ginger|pepper|carrot|celery|potato|mushroom|zucchini|squash|broccoli|spinach|kale|cabbage|cucumber|avocado|lemon|lime|cilantro|basil|parsley|scallion|shallot|herb|apple|banana|berry|fruit|vegetable/,
+    dairy: /milk|cream|butter|cheese|yogurt|ghee|sour cream|crème|mascarpone|ricotta|parmesan|mozzarella|feta|cheddar|egg/,
+    protein: /tofu|tempeh|chicken|beef|pork|lamb|fish|shrimp|salmon|tuna|seitan|sausage|bacon/,
+    grains: /rice|pasta|noodle|bread|flour|oat|quinoa|couscous|tortilla|pita|barley|farro|wheat|cornmeal/,
+    spices: /cumin|coriander|turmeric|paprika|cinnamon|nutmeg|cardamom|clove|pepper|chili|cayenne|oregano|thyme|rosemary|bay leaf|saffron|fennel seed|mustard seed|five spice|star anise|szechuan|sichuan|gochugaru/,
+    condiments: /soy sauce|fish sauce|vinegar|oil|sesame|sriracha|hot sauce|ketchup|mustard|mayo|hoisin|oyster sauce|miso|gochujang|sambal|tahini|harissa|worcester/,
+    canned: /canned|can of|diced tomato|coconut milk|chickpea|bean|broth|stock|tomato paste|tomato sauce/,
+    frozen: /frozen|ice cream/,
+    baking: /sugar|baking powder|baking soda|vanilla|yeast|cocoa|chocolate|cornstarch|honey|maple syrup|molasses/,
+  };
+  for (const [cat, re] of Object.entries(map)) {
+    if (re.test(n)) return cat;
+  }
+  return '';
+}
+
+function getExpirationStatus(dateStr) {
+  if (!dateStr) return null;
+  const exp = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const days = Math.ceil((exp - now) / 86400000);
+  if (days < 0) return { label: `Expired ${-days}d ago`, cls: 'expired', days };
+  if (days <= 7) return { label: `${days}d left`, cls: 'soon', days };
+  return { label: exp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: 'ok', days };
+}
+
+function renderPantryList() {
+  const list = document.getElementById('pantryList');
+  const search = (document.getElementById('pantrySearch')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('pantryCatFilter')?.value || '';
+
+  let items = pantryItems;
+  if (search) items = items.filter(i =>
+    i.name.toLowerCase().includes(search) ||
+    (i.brand && i.brand.toLowerCase().includes(search)) ||
+    (i.notes && i.notes.toLowerCase().includes(search))
+  );
+  if (catFilter) items = items.filter(i => i.category === catFilter);
+
+  // Sort: expired first, then expiring soon, then by category, then name
+  items.sort((a, b) => {
+    const ea = getExpirationStatus(a.expiration);
+    const eb = getExpirationStatus(b.expiration);
+    const da = ea ? ea.days : 9999;
+    const db = eb ? eb.days : 9999;
+    if (da < 0 && db >= 0) return -1;
+    if (db < 0 && da >= 0) return 1;
+    if (da <= 7 && db > 7) return -1;
+    if (db <= 7 && da > 7) return 1;
+    if (a.category !== b.category) return (a.category || 'zzz').localeCompare(b.category || 'zzz');
+    return a.name.localeCompare(b.name);
+  });
+
+  document.getElementById('pantryCount').textContent = `${pantryItems.length} items`;
+
+  if (items.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">
+      ${pantryItems.length === 0 ? 'Add ingredients to your pantry to find recipes you can make.' : 'No items match your filter.'}
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => {
+    const exp = getExpirationStatus(item.expiration);
+    const details = [];
+    if (item.brand) details.push(`<span>${escHtml(item.brand)}</span>`);
+    if (item.amount) details.push(`<span>${escHtml(item.amount)}</span>`);
+    if (item.notes) details.push(`<span>${escHtml(item.notes)}</span>`);
+
+    return `<div class="pantry-item" onclick="openPantryEdit('${item.id}')">
+      <div class="pantry-item-info">
+        <div class="pantry-item-name">
+          ${escHtml(item.name)}
+          ${item.category ? `<span class="pantry-item-cat">${PANTRY_CATEGORIES[item.category] || item.category}</span>` : ''}
+        </div>
+        ${details.length > 0 ? `<div class="pantry-item-details">${details.join('')}</div>` : ''}
+      </div>
+      ${exp ? `<span class="pantry-item-exp ${exp.cls}">${exp.label}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openPantryEdit(id) {
+  const overlay = document.getElementById('pantryEditOverlay');
+  const item = id ? pantryItems.find(i => i.id === id) : null;
+
+  document.getElementById('pantryEditTitle').textContent = item ? 'Edit Item' : 'Add Item';
+  document.getElementById('pantryEditId').value = item ? item.id : '';
+  document.getElementById('peditName').value = item ? item.name : '';
+  document.getElementById('peditBrand').value = item ? item.brand : '';
+  document.getElementById('peditAmount').value = item ? item.amount : '';
+  document.getElementById('peditCategory').value = item ? item.category : '';
+  document.getElementById('peditExpiration').value = item ? item.expiration : '';
+  document.getElementById('peditNotes').value = item ? item.notes : '';
+  document.getElementById('peditDelete').style.display = item ? 'block' : 'none';
+
+  overlay.classList.add('visible');
+  document.getElementById('peditName').focus();
+}
+
+function closePantryEdit() {
+  document.getElementById('pantryEditOverlay').classList.remove('visible');
+}
+
+function savePantryItem() {
+  const id = document.getElementById('pantryEditId').value;
+  const name = document.getElementById('peditName').value.trim();
+  if (!name) return;
+
+  const data = {
+    name,
+    brand: document.getElementById('peditBrand').value.trim(),
+    amount: document.getElementById('peditAmount').value.trim(),
+    category: document.getElementById('peditCategory').value,
+    expiration: document.getElementById('peditExpiration').value,
+    notes: document.getElementById('peditNotes').value.trim(),
+  };
+
+  if (id) {
+    const idx = pantryItems.findIndex(i => i.id === id);
+    if (idx >= 0) pantryItems[idx] = { ...pantryItems[idx], ...data };
+  } else {
+    pantryItems.push({ id: crypto.randomUUID(), ...data });
+  }
+
+  savePantryToStorage();
+  syncPantryIngredients();
+  renderPantryList();
+  closePantryEdit();
+  render();
+  debouncedPush();
+}
+
+function deletePantryItem() {
+  const id = document.getElementById('pantryEditId').value;
+  if (!id) return;
+  pantryItems = pantryItems.filter(i => i.id !== id);
+  savePantryToStorage();
+  syncPantryIngredients();
+  renderPantryList();
+  closePantryEdit();
+  render();
+  debouncedPush();
+}
+
+function normalizeForMatch(s) {
+  s = s.toLowerCase().trim();
+  // Strip common modifiers
+  s = s.replace(/\b(fresh|dried|ground|whole|extra|virgin|light|dark|raw|cooked|frozen|canned)\b/g, '');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function ingredientMatches(normalized, pantryList) {
+  if (!normalized || normalized.length < 2) return true; // skip tiny/empty
+  const norm = normalizeForMatch(normalized);
+  return pantryList.some(p => {
+    if (norm.includes(p) || p.includes(norm)) return true;
+    // Fuzzy: check if core words overlap
+    const normWords = norm.split(' ');
+    const pWords = p.split(' ');
+    return pWords.some(pw => pw.length > 2 && normWords.some(nw => nw.includes(pw) || pw.includes(nw)));
+  });
+}
+
+function computePantryMatches() {
+  pantryMatches.clear();
+  if (pantryIngredients.length === 0) return;
+
+  ALL_RECIPES.forEach(recipe => {
+    const normalized = recipe.ingredients_normalized || [];
+    if (normalized.length === 0) {
+      pantryMatches.set(recipe.id, { matched: 0, missing: [], total: 0 });
+      return;
+    }
+    const matched = [];
+    const missing = [];
+    normalized.forEach((ing, i) => {
+      if (ingredientMatches(ing, pantryIngredients)) {
+        matched.push(ing);
+      } else {
+        missing.push(recipe.ingredients_raw?.[i] || ing);
+      }
+    });
+    pantryMatches.set(recipe.id, {
+      matched: matched.length,
+      missing,
+      total: normalized.length,
+    });
+  });
+}
+
+function getPantryStatus(recipeId) {
+  const m = pantryMatches.get(recipeId);
+  if (!m || m.total === 0) return null;
+  if (m.missing.length === 0) return 'ready';
+  if (m.missing.length <= 3) return 'almost';
+  return 'other';
+}
+
+// ── Scoring ────────────────────────────────────
+function computeHealthScore(recipe) {
+  if (recipe.vegan) return 40;
+  if (recipe.vegetarian) return 30;
+  if (recipe.pescatarian) return 20;
+  return 5;
+}
+
+function estimateRecipeCost(recipe) {
+  const normalized = recipe.ingredients_normalized || [];
+  if (normalized.length === 0 || Object.keys(priceMap).length === 0) return null;
+  let totalCents = 0;
+  let matched = 0;
+  normalized.forEach(ing => {
+    if (ingredientMatches(ing, pantryIngredients)) return;
+    const lower = ing.toLowerCase();
+    const priceEntry = priceMap[lower];
+    if (priceEntry) {
+      totalCents += priceEntry.price_cents;
+      matched++;
+    } else {
+      for (const [key, val] of Object.entries(priceMap)) {
+        if (lower.includes(key) || key.includes(lower)) {
+          totalCents += val.price_cents;
+          matched++;
+          break;
+        }
+      }
+    }
+  });
+  return Math.round(totalCents) / 100;
+}
+
+function computeCostScore(estimatedCost) {
+  if (estimatedCost === null) return 10;
+  if (estimatedCost === 0) return 25;
+  if (estimatedCost < 5) return 20;
+  if (estimatedCost < 10) return 15;
+  if (estimatedCost < 20) return 5;
+  return 0;
+}
+
+function computeEaseScore(recipe) {
+  const d = (recipe.difficulty || '').toLowerCase();
+  if (d === 'easy') return 20;
+  if (d === 'medium') return 10;
+  if (d === 'hard') return 0;
+  return 10;
+}
+
+function computePantryScore(recipe) {
+  const m = pantryMatches.get(recipe.id);
+  if (!m || m.total === 0) return 0;
+  const pct = (m.total - m.missing.length) / m.total;
+  if (pct >= 1) return 15;
+  if (pct > 0.75) return 10;
+  if (pct > 0.5) return 5;
+  return 0;
+}
+
+function computeSeasonalScore(recipe) {
+  if (seasonalProduce.length === 0) return 0;
+  const normalized = recipe.ingredients_normalized || [];
+  if (normalized.length === 0) return 0;
+  const produceIngredients = normalized.filter(ing => {
+    const lower = ing.toLowerCase();
+    return seasonalProduce.some(s => lower.includes(s) || s.includes(lower));
+  });
+  if (produceIngredients.length === 0) return 0;
+  const produceTotal = normalized.filter(ing => {
+    const lower = ing.toLowerCase();
+    for (const [key] of Object.entries(priceMap)) {
+      if ((lower.includes(key) || key.includes(lower)) && priceMap[key].unit === 'per lb') return true;
+    }
+    return seasonalProduce.some(s => lower.includes(s) || s.includes(lower));
+  }).length;
+  if (produceTotal === 0) return 0;
+  return (produceIngredients.length / Math.max(produceTotal, 1)) > 0.5 ? 10 : 3;
+}
+
+function isInSeason(recipe) {
+  if (seasonalProduce.length === 0) return false;
+  const normalized = recipe.ingredients_normalized || [];
+  let seasonalCount = 0;
+  let produceCount = 0;
+  normalized.forEach(ing => {
+    const lower = ing.toLowerCase();
+    const isSeasonal = seasonalProduce.some(s => lower.includes(s) || s.includes(lower));
+    if (isSeasonal) { seasonalCount++; produceCount++; }
+  });
+  return seasonalCount >= 2 && produceCount > 0;
+}
+
+function computeAllScores() {
+  recipeScores.clear();
+  ALL_RECIPES.forEach(recipe => {
+    const health = computeHealthScore(recipe);
+    const estimatedCost = estimateRecipeCost(recipe);
+    const cost = computeCostScore(estimatedCost);
+    const ease = computeEaseScore(recipe);
+    const pantry = computePantryScore(recipe);
+    const season = computeSeasonalScore(recipe);
+    const total = health + cost + ease + pantry + season;
+    recipeScores.set(recipe.id, { total, health, cost, ease, pantry, season, estimatedCost });
+  });
+}
+
+function formatCost(dollars) {
+  if (dollars === null) return null;
+  if (dollars === 0) return '$0';
+  if (dollars < 1) return '<$1';
+  return '~$' + Math.round(dollars);
+}
+
+function estimateCalories(recipe) {
+  if (recipe.nutrition_json && recipe.nutrition_json.calories) {
+    return recipe.nutrition_json.calories;
+  }
+  const normalized = recipe.ingredients_normalized || [];
+  if (normalized.length === 0) return null;
+  const light = new Set(['garlic','ginger','soy sauce','salt','pepper','oil','vinegar',
+    'sugar','honey','lemon','lime','scallion','cilantro','basil','parsley','cumin',
+    'turmeric','paprika','chili','sesame seed','miso','fish sauce','oyster sauce']);
+  let total = 0;
+  let matched = 0;
+  for (const ing of normalized) {
+    const key = ing.toLowerCase();
+    let best = null;
+    for (const [name, data] of Object.entries(nutritionEstimates)) {
+      if (name === '_unit') continue;
+      if (key === name || key.includes(name) || name.includes(key)) {
+        best = { name, data };
+        break;
+      }
+    }
+    if (best) {
+      const grams = light.has(best.name) ? 15 : 150;
+      total += best.data.calories * (grams / 100);
+      matched++;
+    }
+  }
+  if (matched < 2) return null;
+  const servings = parseInt(recipe.servings) || 4;
+  return Math.round(total / servings);
+}
+
+// ── Render ──────────────────────────────────────
+function render() {
+  const filters = getFilters();
+  let recipes = ALL_RECIPES.filter(r => matchesFilters(r, filters));
+
+  // Pantry filtering
+  if (pantryMode && pantryIngredients.length > 0) {
+    if (pantryFilter === 'ready') {
+      recipes = recipes.filter(r => getPantryStatus(r.id) === 'ready');
+    } else if (pantryFilter === 'almost') {
+      recipes = recipes.filter(r => {
+        const s = getPantryStatus(r.id);
+        return s === 'ready' || s === 'almost';
+      });
+    }
+  }
+
+  // Sort
+  if (pantryMode && pantryIngredients.length > 0) {
+    recipes.sort((a, b) => {
+      const sa = getPantryStatus(a.id);
+      const sb = getPantryStatus(b.id);
+      const order = { ready: 0, almost: 1, other: 2 };
+      const diff = (order[sa] ?? 3) - (order[sb] ?? 3);
+      if (diff !== 0) return diff;
+      const ma = pantryMatches.get(a.id);
+      const mb = pantryMatches.get(b.id);
+      if (ma && mb) return ma.missing.length - mb.missing.length;
+      return 0;
+    });
+  } else {
+    recipes.sort((a, b) => {
+      const sa = recipeScores.get(a.id) || { total: 0, estimatedCost: 999, health: 0 };
+      const sb = recipeScores.get(b.id) || { total: 0, estimatedCost: 999, health: 0 };
+      switch (currentSort) {
+        case 'cheapest':
+          return (sa.estimatedCost ?? 999) - (sb.estimatedCost ?? 999);
+        case 'quickest':
+          return (a.total_time_min || 999) - (b.total_time_min || 999);
+        case 'healthiest':
+          return sb.health - sa.health || sb.total - sa.total;
+        default:
+          return sb.total - sa.total;
+      }
+    });
+  }
+
+  // Update pantry counts
+  if (pantryMode && pantryIngredients.length > 0) {
+    let readyCount = 0, almostCount = 0;
+    const allFiltered = ALL_RECIPES.filter(r => matchesFilters(r, filters));
+    allFiltered.forEach(r => {
+      const s = getPantryStatus(r.id);
+      if (s === 'ready') readyCount++;
+      if (s === 'almost') almostCount++;
+    });
+    document.getElementById('readyCount').textContent = readyCount;
+    document.getElementById('almostCount').textContent = almostCount + readyCount;
+    document.getElementById('allCount').textContent = allFiltered.length;
+
+    // Show "add missing to reminders" button when on almost tab
+    const btn = document.getElementById('addMissingToReminders');
+    btn.style.display = (pantryFilter === 'almost' && almostCount > 0) ? 'block' : 'none';
+  }
+
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('emptyState');
+
+  if (recipes.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    grid.innerHTML = recipes.map(r => renderCard(r)).join('');
+  }
+
+  document.getElementById('stats').textContent =
+    `Showing ${recipes.length} of ${ALL_RECIPES.length} recipes`;
+}
+
+function renderCard(recipe) {
+  const status = pantryMode ? getPantryStatus(recipe.id) : null;
+  const match = pantryMatches.get(recipe.id);
+
+  let badge = '';
+  if (status === 'ready') badge = '<div class="pantry-badge ready">Ready!</div>';
+  else if (status === 'almost') badge = `<div class="pantry-badge almost">Need ${match.missing.length}</div>`;
+
+  let missingHtml = '';
+  if (pantryMode && status === 'almost' && match) {
+    missingHtml = `<div class="missing-list"><strong>Need:</strong> ${match.missing.slice(0, 3).join(', ')}</div>`;
+  }
+
+  const img = recipe.image_url
+    ? `<img class="card-image" src="${escHtml(recipe.image_url)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'card-image placeholder\\'>🍽️</div>'">`
+    : '<div class="card-image placeholder">🍽️</div>';
+
+  const tags = [];
+  if (recipe.vegan) tags.push('<span class="tag vegan">Vegan</span>');
+  else if (recipe.vegetarian) tags.push('<span class="tag veg">Vegetarian</span>');
+  if (recipe.gluten_free) tags.push('<span class="tag gf">GF</span>');
+  if (recipe.cuisine) tags.push(`<span class="tag">${escHtml(recipe.cuisine)}</span>`);
+
+  const score = recipeScores.get(recipe.id);
+  const badges = [];
+  if (score) {
+    if (recipe.vegan) badges.push('<span class="badge badge-leaf">🌱 Vegan</span>');
+    else if (recipe.vegetarian) badges.push('<span class="badge badge-leaf">🌿 Vegetarian</span>');
+    const costStr = formatCost(score.estimatedCost);
+    if (costStr !== null) {
+      badges.push(`<span class="badge badge-cost${score.estimatedCost === 0 ? ' free' : ''}">${costStr}</span>`);
+    }
+    if (isInSeason(recipe)) badges.push('<span class="badge badge-season">In season</span>');
+    const cal = estimateCalories(recipe);
+    if (cal) badges.push(`<span class="badge badge-cal">~${cal} cal</span>`);
+  }
+
+  return `
+    <div class="recipe-card" onclick="showDetail(${recipe.id})">
+      ${badge}
+      ${img}
+      <div class="card-body">
+        <div class="card-source">${escHtml(recipe.source)}</div>
+        <div class="card-title">${escHtml(recipe.title)}</div>
+        <div class="card-meta">
+          ${recipe.total_time_min ? `<span>⏱ ${recipe.total_time_min} min</span>` : ''}
+          ${recipe.difficulty ? `<span>${recipe.difficulty}</span>` : ''}
+          ${recipe.servings ? `<span>Serves ${escHtml(recipe.servings)}</span>` : ''}
+        </div>
+        <div class="card-tags">${tags.join('')}</div>
+        ${badges.length > 0 ? `<div class="card-badges">${badges.join('')}</div>` : ''}
+        ${missingHtml}
+      </div>
+    </div>`;
+}
+
+// ── Detail modal ────────────────────────────────
+function showDetail(id) {
+  const recipe = ALL_RECIPES.find(r => r.id === id);
+  if (!recipe) return;
+
+  document.getElementById('modalTitle').textContent = recipe.title;
+
+  const meta = [];
+  if (recipe.source) meta.push(`<div><dt>Source</dt><dd>${escHtml(recipe.source)}</dd></div>`);
+  if (recipe.cuisine) meta.push(`<div><dt>Cuisine</dt><dd>${escHtml(recipe.cuisine)}</dd></div>`);
+  if (recipe.total_time_min) meta.push(`<div><dt>Total time</dt><dd>${recipe.total_time_min} min</dd></div>`);
+  if (recipe.prep_time_min) meta.push(`<div><dt>Prep</dt><dd>${recipe.prep_time_min} min</dd></div>`);
+  if (recipe.cook_time_min) meta.push(`<div><dt>Cook</dt><dd>${recipe.cook_time_min} min</dd></div>`);
+  if (recipe.difficulty) meta.push(`<div><dt>Difficulty</dt><dd>${recipe.difficulty}</dd></div>`);
+  if (recipe.servings) meta.push(`<div><dt>Servings</dt><dd>${escHtml(recipe.servings)}</dd></div>`);
+
+  const ingredients = (recipe.ingredients_raw || [])
+    .map(i => {
+      const stores = getStoresForIngredient(i);
+      const badges = renderStoreBadges(stores);
+      if (badges) {
+        return `<li class="ingredient-with-store"><span>${escHtml(i)}</span><span class="stores">${badges}</span></li>`;
+      }
+      return `<li>${escHtml(i)}</li>`;
+    }).join('');
+
+  const match = pantryMatches.get(recipe.id);
+  let pantryInfo = '';
+  if (pantryMode && match && match.missing.length > 0) {
+    pantryInfo = `
+      <div class="missing-list" style="margin-top:12px">
+        <strong>Missing from your pantry (${match.missing.length}):</strong><br>
+        ${match.missing.map(m => escHtml(m)).join('<br>')}
+      </div>`;
+  }
+
+  let body = `
+    <div class="modal-meta">${meta.join('')}</div>
+    ${recipe.description ? `<p style="margin-bottom:12px;color:var(--text-muted)">${escHtml(recipe.description)}</p>` : ''}
+    ${ingredients ? `<div class="modal-section"><h3>Ingredients</h3><ul>${ingredients}</ul></div>` : ''}
+    ${pantryInfo}
+    ${(() => {
+      const n = recipe.nutrition_json;
+      const cal = estimateCalories(recipe);
+      if (!n && !cal) return '';
+      const items = [];
+      if (n) {
+        if (n.calories) items.push(`${n.calories} cal`);
+        if (n.protein_g) items.push(`${n.protein_g}g protein`);
+        if (n.carbs_g) items.push(`${n.carbs_g}g carbs`);
+        if (n.fat_g) items.push(`${n.fat_g}g fat`);
+        if (n.fiber_g) items.push(`${n.fiber_g}g fiber`);
+      } else if (cal) {
+        items.push(`~${cal} cal (estimated)`);
+      }
+      return `<div style="margin-top:12px;padding:10px;background:#e3f2fd;border-radius:8px;font-size:13px;color:#1565c0;display:flex;gap:12px;flex-wrap:wrap">${items.map(i => `<span>${i}</span>`).join('')}</div>`;
+    })()}
+    <div class="modal-actions" style="flex-wrap:wrap">
+      <a class="modal-btn primary" href="${escHtml(recipe.url)}" target="_blank" rel="noopener">View original</a>
+      <button class="modal-btn" onclick="addToReminders(${recipe.id})">Add to Reminders</button>
+      <button class="modal-btn" onclick="addIngredientsToReminders(${recipe.id})">Shop ingredients</button>
+      <button class="modal-btn" onclick="iCookedThis(${recipe.id})" style="background:var(--accent-light);color:var(--accent);border-color:var(--accent)">I cooked this</button>
+    </div>`;
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modal').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+// ── Apple Reminders integration ─────────────────
+// Uses x-apple-reminderkit URL scheme on macOS/iOS
+function addToReminders(recipeId) {
+  const recipe = ALL_RECIPES.find(r => r.id === recipeId);
+  if (!recipe) return;
+  const title = `Cook: ${recipe.title}`;
+  const notes = `Source: ${recipe.source}\n${recipe.url}`;
+  openReminder(title, notes);
+}
+
+function addIngredientsToReminders(recipeId) {
+  const recipe = ALL_RECIPES.find(r => r.id === recipeId);
+  if (!recipe) return;
+  const items = recipe.ingredients_raw || [];
+  if (items.length === 0) { alert('No ingredients found for this recipe.'); return; }
+
+  // Group by store for a smarter shopping list
+  const byStore = new Map();
+  const noStore = [];
+  items.forEach(item => {
+    const stores = getStoresForIngredient(item);
+    if (stores.length > 0) {
+      const primary = stores[0];
+      if (!byStore.has(primary.name)) byStore.set(primary.name, []);
+      byStore.get(primary.name).push(item);
+    } else {
+      noStore.push(item);
+    }
+  });
+
+  let body = `Shopping list: ${recipe.title}\n\n`;
+  if (byStore.size > 0) {
+    for (const [store, storeItems] of byStore) {
+      body += `--- ${store} ---\n`;
+      storeItems.forEach(i => { body += `- ${i}\n`; });
+      body += '\n';
+    }
+  }
+  if (noStore.length > 0) {
+    body += `--- Any store ---\n`;
+    noStore.forEach(i => { body += `- ${i}\n`; });
+  }
+
+  if (confirm(`Add ${items.length} ingredients to Reminders?\n\nGrouped by ${byStore.size} store${byStore.size !== 1 ? 's' : ''}.`)) {
+    navigator.clipboard.writeText(body).then(() => {
+      const shortcutUrl = `shortcuts://run-shortcut?name=Add%20Shopping%20List&input=text&text=${encodeURIComponent(body)}`;
+      const w = window.open(shortcutUrl);
+      if (!w) {
+        alert('Shopping list copied to clipboard! Open Reminders and paste it in.');
+      }
+    }).catch(() => {
+      prompt('Copy this shopping list:', body);
+    });
+  }
+}
+
+function addMissingIngredientsToReminders() {
+  // Collect all missing ingredients from "almost" recipes
+  const filters = getFilters();
+  const recipes = ALL_RECIPES.filter(r => matchesFilters(r, filters));
+  const missing = new Set();
+  recipes.forEach(r => {
+    const m = pantryMatches.get(r.id);
+    if (m && m.missing.length > 0 && m.missing.length <= 3) {
+      m.missing.forEach(i => missing.add(i));
+    }
+  });
+
+  if (missing.size === 0) { alert('No missing ingredients found.'); return; }
+
+  const items = [...missing].sort();
+  // Group by store
+  const byStore = new Map();
+  const noStore = [];
+  items.forEach(item => {
+    const stores = getStoresForIngredient(item);
+    if (stores.length > 0) {
+      const primary = stores[0];
+      if (!byStore.has(primary.name)) byStore.set(primary.name, []);
+      byStore.get(primary.name).push(item);
+    } else {
+      noStore.push(item);
+    }
+  });
+
+  let body = `Shopping list (missing ingredients)\n\n`;
+  for (const [store, storeItems] of byStore) {
+    body += `--- ${store} ---\n`;
+    storeItems.forEach(i => { body += `- ${i}\n`; });
+    body += '\n';
+  }
+  if (noStore.length > 0) {
+    body += `--- Any store ---\n`;
+    noStore.forEach(i => { body += `- ${i}\n`; });
+  }
+
+  if (confirm(`Add ${items.length} missing ingredients to your shopping list?\n\nGrouped by ${byStore.size} store${byStore.size !== 1 ? 's' : ''}.`)) {
+    navigator.clipboard.writeText(body).then(() => {
+      const shortcutUrl = `shortcuts://run-shortcut?name=Add%20Shopping%20List&input=text&text=${encodeURIComponent(body)}`;
+      const w = window.open(shortcutUrl);
+      if (!w) {
+        alert('Shopping list copied to clipboard! Open Reminders and paste it in.');
+      }
+    });
+  }
+}
+
+function openReminder(title, notes) {
+  // x-apple-reminderkit://REMCDReminder/create?title=X&notes=Y
+  const url = `x-apple-reminderkit://REMCDReminder/create?title=${encodeURIComponent(title)}&notes=${encodeURIComponent(notes || '')}`;
+  window.location.href = url;
+}
+
+// ── Amount parsing & deduction ──────────────────
+const UNICODE_FRACS = {'½':0.5,'⅓':0.333,'⅔':0.667,'¼':0.25,'¾':0.75,'⅛':0.125,'⅜':0.375,'⅝':0.625,'⅞':0.875};
+
+const UNIT_ALIASES = {
+  cup:'cup', cups:'cup', c:'cup',
+  tbsp:'tbsp', tablespoon:'tbsp', tablespoons:'tbsp',
+  tsp:'tsp', teaspoon:'tsp', teaspoons:'tsp',
+  oz:'oz', ounce:'oz', ounces:'oz',
+  lb:'lb', lbs:'lb', pound:'lb', pounds:'lb',
+  g:'g', gram:'g', grams:'g',
+  kg:'kg', kilogram:'kg', kilograms:'kg',
+  ml:'ml', milliliter:'ml', milliliters:'ml',
+  l:'l', liter:'l', liters:'l', litre:'l', litres:'l',
+  can:'can', cans:'can',
+  bottle:'bottle', bottles:'bottle',
+  bunch:'bunch', bunches:'bunch',
+  clove:'clove', cloves:'clove',
+  head:'head', heads:'head',
+  piece:'piece', pieces:'piece',
+  slice:'slice', slices:'slice',
+  stalk:'stalk', stalks:'stalk',
+  sprig:'sprig', sprigs:'sprig',
+  pinch:'pinch', dash:'dash', handful:'handful',
+};
+
+const UNIT_CONVERSIONS = {
+  'tbsp>cup': 1/16, 'cup>tbsp': 16,
+  'tsp>tbsp': 1/3, 'tbsp>tsp': 3,
+  'tsp>cup': 1/48, 'cup>tsp': 48,
+  'oz>lb': 1/16, 'lb>oz': 16,
+  'g>kg': 1/1000, 'kg>g': 1000,
+  'oz>g': 28.35, 'g>oz': 1/28.35,
+  'lb>g': 453.6, 'g>lb': 1/453.6,
+  'ml>l': 1/1000, 'l>ml': 1000,
+  'cup>ml': 236.6, 'ml>cup': 1/236.6,
+};
+
+function parseAmount(str) {
+  if (!str) return null;
+  str = str.trim().toLowerCase();
+
+  let value = 0;
+  let rest = str;
+
+  // Handle unicode fractions
+  for (const [ch, val] of Object.entries(UNICODE_FRACS)) {
+    if (rest.includes(ch)) {
+      value += val;
+      rest = rest.replace(ch, '').trim();
+    }
+  }
+
+  // Handle "1 1/2" or "1/2" or "1.5" patterns
+  const mixedMatch = rest.match(/^(\d+)\s+(\d+)\/(\d+)/);
+  const fracMatch = rest.match(/^(\d+)\/(\d+)/);
+  const decMatch = rest.match(/^(\d+\.?\d*)/);
+
+  if (mixedMatch) {
+    value += parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
+    rest = rest.slice(mixedMatch[0].length).trim();
+  } else if (fracMatch) {
+    value += parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
+    rest = rest.slice(fracMatch[0].length).trim();
+  } else if (decMatch) {
+    value += parseFloat(decMatch[1]);
+    rest = rest.slice(decMatch[0].length).trim();
+  }
+
+  if (value === 0) return null;
+
+  // Parse unit
+  const unitMatch = rest.match(/^([a-z]+)/);
+  let unit = 'count';
+  if (unitMatch) {
+    unit = UNIT_ALIASES[unitMatch[1]] || unitMatch[1];
+  }
+
+  return { value, unit };
+}
+
+function parseRecipeIngredientAmount(raw) {
+  if (!raw) return null;
+  const s = raw.trim();
+  // Match leading number/fraction + optional unit
+  const m = s.match(/^([\d½¼¾⅓⅔⅛⅜⅝⅞/.\s-]+)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|grams?|g|kg|ml|liters?|litres?|l|cans?|bottles?|bunche?s?|cloves?|heads?|pieces?|slices?|stalks?|sprigs?|pinch|dash|handful)?/i);
+  if (!m) return null;
+  const parsed = parseAmount(m[1] + (m[2] ? ' ' + m[2] : ''));
+  return parsed;
+}
+
+function convertAmount(value, fromUnit, toUnit) {
+  if (fromUnit === toUnit) return value;
+  const key = `${fromUnit}>${toUnit}`;
+  if (UNIT_CONVERSIONS[key]) return value * UNIT_CONVERSIONS[key];
+  return null;
+}
+
+function iCookedThis(recipeId) {
+  const recipe = ALL_RECIPES.find(r => r.id === recipeId);
+  if (!recipe) return;
+  if (pantryItems.length === 0) {
+    alert('Add items to your pantry first to track usage.');
+    return;
+  }
+
+  const rawIngredients = recipe.ingredients_raw || [];
+  const normalizedIngredients = recipe.ingredients_normalized || [];
+  if (rawIngredients.length === 0) {
+    alert('No ingredient data available for this recipe.');
+    return;
+  }
+
+  // Match recipe ingredients to pantry items and compute deductions
+  const deductions = [];
+  const unmatched = [];
+
+  rawIngredients.forEach((raw, idx) => {
+    const norm = (normalizedIngredients[idx] || '').toLowerCase();
+    const recipeAmt = parseRecipeIngredientAmount(raw);
+
+    // Find matching pantry item
+    let bestMatch = null;
+    let bestScore = 0;
+    for (const item of pantryItems) {
+      const pName = item.name.toLowerCase();
+      let score = 0;
+      if (pName === norm) score = 3;
+      else if (norm.includes(pName) || pName.includes(norm)) score = 2;
+      else {
+        const pWords = pName.split(' ');
+        const nWords = norm.split(' ');
+        const overlap = pWords.filter(pw => pw.length > 2 && nWords.some(nw => nw.includes(pw) || pw.includes(nw)));
+        if (overlap.length > 0) score = 1;
+      }
+      if (score > bestScore) { bestMatch = item; bestScore = score; }
+    }
+
+    if (bestMatch && recipeAmt) {
+      const pantryAmt = parseAmount(bestMatch.amount);
+      deductions.push({
+        pantryItem: bestMatch,
+        recipeRaw: raw,
+        recipeAmt,
+        pantryAmt,
+        norm,
+      });
+    } else if (bestMatch) {
+      deductions.push({
+        pantryItem: bestMatch,
+        recipeRaw: raw,
+        recipeAmt: null,
+        pantryAmt: null,
+        norm,
+      });
+    } else {
+      unmatched.push(raw);
+    }
+  });
+
+  // Build confirmation message
+  let msg = `Mark "${recipe.title}" as cooked?\n\nPantry updates:\n`;
+  const updates = [];
+
+  deductions.forEach(d => {
+    if (d.recipeAmt && d.pantryAmt) {
+      const converted = convertAmount(d.recipeAmt.value, d.recipeAmt.unit, d.pantryAmt.unit);
+      if (converted !== null) {
+        const remaining = Math.max(0, d.pantryAmt.value - converted);
+        const remainStr = remaining === 0 ? 'none left' : `${remaining % 1 === 0 ? remaining : remaining.toFixed(1)} ${d.pantryAmt.unit}`;
+        msg += `  ${d.pantryItem.name}: ${d.pantryItem.amount} → ${remainStr}\n`;
+        updates.push({ id: d.pantryItem.id, newAmount: remaining === 0 ? '' : `${remaining % 1 === 0 ? remaining : remaining.toFixed(1)} ${d.pantryAmt.unit}`, remove: remaining === 0 });
+      } else {
+        msg += `  ${d.pantryItem.name}: used (can't auto-convert ${d.recipeAmt.unit} → ${d.pantryAmt.unit})\n`;
+      }
+    } else {
+      msg += `  ${d.pantryItem.name}: used (no quantity to deduct)\n`;
+    }
+  });
+
+  if (unmatched.length > 0) {
+    msg += `\nNot in pantry:\n`;
+    unmatched.slice(0, 5).forEach(u => { msg += `  ${u}\n`; });
+    if (unmatched.length > 5) msg += `  ...and ${unmatched.length - 5} more\n`;
+  }
+
+  if (!confirm(msg)) return;
+
+  // Apply updates
+  updates.forEach(u => {
+    const item = pantryItems.find(i => i.id === u.id);
+    if (!item) return;
+    if (u.remove) {
+      pantryItems = pantryItems.filter(i => i.id !== u.id);
+    } else {
+      item.amount = u.newAmount;
+    }
+  });
+
+  savePantryToStorage();
+  syncPantryIngredients();
+  renderPantryList();
+  closeModal();
+  render();
+  debouncedPush();
+
+  // Log to history API
+  if (syncConfig) {
+    fetch(`${syncConfig.url}/history`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipe_id: recipeId }),
+    }).then(async () => {
+      const stats = await getWeeklyStats();
+      if (stats && stats.total > 1) {
+        showToast(`Nice! ${stats.vegCount}/${stats.total} meals vegetarian this week`, 'success');
+      } else {
+        showToast(`Cooked ${recipe.title}!`, 'success');
+      }
+      setTimeout(() => showRatingPrompt(recipeId, recipe.title), 1500);
+    }).catch(e => {
+      console.warn('History log failed:', e);
+      showToast(`Cooked ${recipe.title}!`, 'success');
+    });
+  } else {
+    showToast(`Cooked ${recipe.title}!`, 'success');
+  }
+
+  logMealToHealth(recipe);
+}
+
+function estimateNutrition(recipe) {
+  const n = recipe.nutrition_json;
+  if (n && n.calories) return n;
+  const normalized = recipe.ingredients_normalized || [];
+  if (normalized.length === 0) return null;
+  const light = new Set(['garlic','ginger','soy sauce','salt','pepper','oil','vinegar',
+    'sugar','honey','lemon','lime','scallion','cilantro','basil','parsley','cumin',
+    'turmeric','paprika','chili','sesame seed','miso','fish sauce','oyster sauce']);
+  let cal = 0, pro = 0, carb = 0, fat = 0, matched = 0;
+  for (const ing of normalized) {
+    const key = ing.toLowerCase();
+    for (const [name, data] of Object.entries(nutritionEstimates)) {
+      if (name === '_unit') continue;
+      if (key === name || key.includes(name) || name.includes(key)) {
+        const g = light.has(name) ? 15 : 150;
+        const scale = g / 100;
+        cal += data.calories * scale;
+        pro += (data.protein_g || 0) * scale;
+        carb += (data.carbs_g || 0) * scale;
+        fat += (data.fat_g || 0) * scale;
+        matched++;
+        break;
+      }
+    }
+  }
+  if (matched < 2) return null;
+  const servings = parseInt(recipe.servings) || 4;
+  return {
+    calories: Math.round(cal / servings),
+    protein_g: Math.round(pro / servings),
+    carbs_g: Math.round(carb / servings),
+    fat_g: Math.round(fat / servings),
+  };
+}
+
+function logMealToHealth(recipe) {
+  const nutr = estimateNutrition(recipe);
+  if (!nutr || !nutr.calories) return;
+  const payload = {
+    meal_name: recipe.title,
+    calories: nutr.calories,
+    protein_g: nutr.protein_g || 0,
+    carbs_g: nutr.carbs_g || 0,
+    fat_g: nutr.fat_g || 0,
+    meal_type: 'dinner',
+  };
+  const url = `shortcuts://run-shortcut?name=LogMealNutrition&input=text&text=${encodeURIComponent(JSON.stringify(payload))}`;
+  window.location.href = url;
+}
+
+function fetchDailyActivity() {
+  window.location.href = 'shortcuts://run-shortcut?name=GetDailyActivity';
+  setTimeout(() => {
+    navigator.clipboard.readText().then(text => {
+      try {
+        const data = JSON.parse(text);
+        if (data.active_cal !== undefined) {
+          sessionStorage.setItem('dailyActivity', JSON.stringify(data));
+        }
+      } catch {}
+    }).catch(() => {});
+  }, 3000);
+}
+
+// ── Toast notifications ────────────────────────
+function showToast(msg, type = '') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3200);
+}
+
+// ── Rating flow ────────────────────────────────
+let pendingRating = null;
+
+function showRatingPrompt(recipeId, recipeName) {
+  pendingRating = { recipeId, recipeName };
+  const modal = document.getElementById('ratingModal');
+  document.getElementById('ratingTitle').textContent = `How was ${recipeName}?`;
+  const starRow = document.getElementById('starRow');
+  starRow.innerHTML = [1,2,3,4,5].map(n =>
+    `<button class="star-btn empty" data-rating="${n}" onclick="submitRating(${n})">★</button>`
+  ).join('');
+  starRow.querySelectorAll('.star-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      const r = parseInt(btn.dataset.rating);
+      starRow.querySelectorAll('.star-btn').forEach(b => {
+        b.classList.toggle('filled', parseInt(b.dataset.rating) <= r);
+        b.classList.toggle('empty', parseInt(b.dataset.rating) > r);
+      });
+    });
+  });
+  starRow.addEventListener('mouseleave', () => {
+    starRow.querySelectorAll('.star-btn').forEach(b => { b.classList.add('empty'); b.classList.remove('filled'); });
+  });
+  modal.classList.add('visible');
+}
+
+async function submitRating(rating) {
+  document.getElementById('ratingModal').classList.remove('visible');
+  if (!pendingRating || !syncConfig) return;
+  try {
+    await fetch(`${syncConfig.url}/history`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipe_id: pendingRating.recipeId, rating }),
+    });
+  } catch (e) { console.warn('Rating save failed:', e); }
+  const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+  showToast(`${stars} Rated ${pendingRating.recipeName}`, 'warm');
+  pendingRating = null;
+}
+
+function skipRating() {
+  document.getElementById('ratingModal').classList.remove('visible');
+  pendingRating = null;
+}
+
+async function getWeeklyStats() {
+  if (!syncConfig) return null;
+  try {
+    const resp = await fetch(`${syncConfig.url}/history?limit=50`, {
+      headers: { 'Authorization': `Bearer ${syncConfig.token}` },
+    });
+    if (!resp.ok) return null;
+    const history = await resp.json();
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const thisWeek = history.filter(h => new Date(h.cooked_at) >= weekAgo);
+    if (thisWeek.length === 0) return null;
+    const vegCount = thisWeek.filter(h => {
+      const r = ALL_RECIPES.find(rec => rec.id === h.recipe_id);
+      return r && (r.vegetarian || r.vegan);
+    }).length;
+    return { total: thisWeek.length, vegCount };
+  } catch { return null; }
+}
+
+// ── Meal Planner ──────────────────────────────
+let plannerMode = false;
+let plannerWeekOffset = 0;
+let mealPlan = []; // { recipe_id, plan_date, meal_type, title, source, image_url }
+let pickerContext = null; // { date, mealType }
+
+function getWeekDates(offset = 0) {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + offset * 7);
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function formatDateISO(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function togglePlanner() {
+  plannerMode = !plannerMode;
+  document.getElementById('planBtn').classList.toggle('active', plannerMode);
+  const plannerView = document.getElementById('plannerView');
+  const sortBar = document.getElementById('sortBar');
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('emptyState');
+
+  if (plannerMode) {
+    plannerView.classList.add('visible');
+    sortBar.style.display = 'none';
+    grid.style.display = 'none';
+    empty.style.display = 'none';
+    loadMealPlan();
+  } else {
+    plannerView.classList.remove('visible');
+    sortBar.style.display = '';
+    grid.style.display = '';
+    render();
+  }
+}
+
+async function loadMealPlan() {
+  const dates = getWeekDates(plannerWeekOffset);
+  const start = formatDateISO(dates[0]);
+  const end = formatDateISO(dates[6]);
+
+  if (syncConfig) {
+    try {
+      const resp = await fetch(`${syncConfig.url}/meal-plan?start=${start}&end=${end}`, {
+        headers: { 'Authorization': `Bearer ${syncConfig.token}` },
+      });
+      if (resp.ok) mealPlan = await resp.json();
+    } catch (e) { console.warn('Meal plan load failed:', e); }
+  }
+  renderPlanner();
+}
+
+function renderPlanner() {
+  const dates = getWeekDates(plannerWeekOffset);
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const todayStr = formatDateISO(new Date());
+
+  const label = document.getElementById('plannerWeekLabel');
+  const startStr = dates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endStr = dates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  label.textContent = `${startStr} – ${endStr}`;
+
+  const vegCount = mealPlan.filter(m => {
+    const r = ALL_RECIPES.find(rec => rec.id === m.recipe_id);
+    return r && (r.vegetarian || r.vegan);
+  }).length;
+  const summary = document.getElementById('plannerWeekSummary');
+  summary.textContent = mealPlan.length > 0
+    ? `${vegCount}/${mealPlan.length} vegetarian`
+    : '';
+
+  const strip = document.getElementById('plannerStrip');
+  strip.innerHTML = dates.map((d, i) => {
+    const dateStr = formatDateISO(d);
+    const isToday = dateStr === todayStr;
+    const meals = mealPlan.filter(m => m.plan_date === dateStr);
+    const dateNum = d.getDate();
+
+    const mealCards = meals.map(m =>
+      `<div class="planner-meal-card" onclick="showDetail(${m.recipe_id})">
+        <span>${escHtml(m.title)}</span>
+        <button class="remove-meal" onclick="event.stopPropagation(); removeMeal('${dateStr}', '${m.meal_type}')" title="Remove">&times;</button>
+      </div>`
+    ).join('');
+
+    return `<div class="planner-day${isToday ? ' today' : ''}">
+      <div class="planner-day-header">
+        <span class="planner-day-name">${dayNames[i]}</span>
+        <span class="planner-day-date">${dateNum}</span>
+      </div>
+      <div class="planner-meal">
+        ${mealCards}
+        <button class="planner-add-btn" onclick="openPicker('${dateStr}', 'dinner')">+ Add</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  renderShoppingList();
+}
+
+function renderShoppingList() {
+  const body = document.getElementById('shoppingListBody');
+  const actions = document.getElementById('shoppingActions');
+  const countEl = document.getElementById('shoppingCount');
+
+  if (mealPlan.length === 0) {
+    body.innerHTML = '<div class="planner-shopping-empty">Add meals to your plan to generate a shopping list.</div>';
+    actions.style.display = 'none';
+    countEl.textContent = '';
+    return;
+  }
+
+  const needed = new Map();
+  for (const meal of mealPlan) {
+    const recipe = ALL_RECIPES.find(r => r.id === meal.recipe_id);
+    if (!recipe) continue;
+    const normalized = recipe.ingredients_normalized || [];
+    const raw = recipe.ingredients_raw || [];
+    normalized.forEach((norm, idx) => {
+      const key = norm.toLowerCase();
+      if (!key || key.length < 2) return;
+      if (!needed.has(key)) {
+        needed.set(key, { name: norm, raw: raw[idx] || norm, count: 0 });
+      }
+      needed.get(key).count++;
+    });
+  }
+
+  for (const pItem of pantryIngredients) {
+    needed.delete(pItem);
+    for (const [key] of needed) {
+      if (key.includes(pItem) || pItem.includes(key)) {
+        needed.delete(key);
+      }
+    }
+  }
+
+  if (needed.size === 0) {
+    body.innerHTML = '<div class="planner-shopping-empty">You have everything you need!</div>';
+    actions.style.display = 'none';
+    countEl.textContent = '';
+    return;
+  }
+
+  const items = [...needed.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const grouped = new Map();
+  for (const item of items) {
+    const stores = getStoresForIngredient(item.name);
+    const storeKey = stores.length > 0 ? stores[0].name : 'Other';
+    const storeColor = stores.length > 0 ? stores[0].color : '#999';
+    if (!grouped.has(storeKey)) grouped.set(storeKey, { color: storeColor, items: [] });
+    grouped.get(storeKey).items.push(item);
+  }
+
+  let html = '';
+  for (const [storeName, group] of grouped) {
+    html += `<div class="planner-shopping-store">
+      <h4 style="background:${storeName === 'Other' ? 'var(--tag-bg)' : group.color + '20'};color:${storeName === 'Other' ? 'var(--text-muted)' : group.color}">${escHtml(storeName)}</h4>
+      <ul class="planner-shopping-list">
+        ${group.items.map(it => `<li><span>${escHtml(it.name)}</span>${it.count > 1 ? `<span style="color:var(--text-muted);font-size:11px">x${it.count} recipes</span>` : ''}</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+  countEl.textContent = `(${items.length} items)`;
+  actions.style.display = 'flex';
+}
+
+function copyShoppingList() {
+  const items = document.querySelectorAll('.planner-shopping-list li span:first-child');
+  const text = [...items].map(el => el.textContent).join('\n');
+  navigator.clipboard.writeText(text).then(() => showToast('Shopping list copied', 'success'));
+}
+
+function sendShoppingToReminders() {
+  const items = document.querySelectorAll('.planner-shopping-list li span:first-child');
+  const list = [...items].map(el => el.textContent);
+  if (list.length === 0) return;
+  const title = 'Grocery List';
+  const notes = list.join('\n');
+  openReminder(title, notes);
+}
+
+async function removeMeal(dateStr, mealType) {
+  mealPlan = mealPlan.filter(m => !(m.plan_date === dateStr && m.meal_type === mealType));
+  renderPlanner();
+
+  if (syncConfig) {
+    try {
+      await fetch(`${syncConfig.url}/meal-plan`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_date: dateStr, meal_type: mealType }),
+      });
+    } catch (e) { console.warn('Remove meal failed:', e); }
+  }
+  showToast('Removed from plan', '');
+}
+
+function openPicker(dateStr, mealType) {
+  pickerContext = { date: dateStr, mealType };
+  const d = new Date(dateStr + 'T12:00:00');
+  const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+  document.getElementById('pickerTitle').textContent = `Add meal for ${dayName}`;
+  document.getElementById('pickerSearch').value = '';
+  renderPickerList('');
+  document.getElementById('pickerOverlay').classList.add('visible');
+  document.getElementById('pickerSearch').focus();
+}
+
+function closePicker() {
+  document.getElementById('pickerOverlay').classList.remove('visible');
+  pickerContext = null;
+}
+
+function renderPickerList(query) {
+  const list = document.getElementById('pickerList');
+  const q = query.toLowerCase().trim();
+  let recipes = ALL_RECIPES;
+  if (q) {
+    recipes = recipes.filter(r => {
+      const haystack = [r.title, r.source, r.cuisine, ...(r.ingredients_raw || [])].join(' ').toLowerCase();
+      return q.split(/\s+/).every(t => haystack.includes(t));
+    });
+  }
+
+  const scored = recipes.map(r => ({ r, score: recipeScores.get(r.id)?.total || 0 }));
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, 50);
+
+  list.innerHTML = top.map(({ r }) => {
+    const img = r.image_url
+      ? `<img class="picker-item-img" src="${escHtml(r.image_url)}" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="picker-item-img" style="display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--accent-light)">🍽️</div>`;
+    const meta = [r.source, r.cuisine, r.total_time_min ? `${r.total_time_min}m` : ''].filter(Boolean).join(' · ');
+    return `<div class="picker-item" onclick="pickRecipe(${r.id})">
+      ${img}
+      <div class="picker-item-info">
+        <div class="picker-item-title">${escHtml(r.title)}</div>
+        <div class="picker-item-meta">${escHtml(meta)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (top.length === 0) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">No recipes found</div>';
+  }
+}
+
+async function pickRecipe(recipeId) {
+  if (!pickerContext) return;
+  const recipe = ALL_RECIPES.find(r => r.id === recipeId);
+  if (!recipe) return;
+
+  const ctx = { ...pickerContext };
+  closePicker();
+
+  const existing = mealPlan.findIndex(m => m.plan_date === ctx.date && m.meal_type === ctx.mealType);
+  const entry = {
+    recipe_id: recipeId,
+    plan_date: ctx.date,
+    meal_type: ctx.mealType,
+    title: recipe.title,
+    source: recipe.source,
+    image_url: recipe.image_url,
+  };
+
+  if (existing >= 0) mealPlan[existing] = entry;
+  else mealPlan.push(entry);
+  renderPlanner();
+
+  if (syncConfig) {
+    try {
+      await fetch(`${syncConfig.url}/meal-plan`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe_id: recipeId, plan_date: ctx.date, meal_type: ctx.mealType }),
+      });
+    } catch (e) { console.warn('Save meal plan failed:', e); }
+  }
+  showToast(`Added ${recipe.title} to plan`, 'success');
+}
+
+function addToPlanFromSuggest(recipeId, suggestedDay) {
+  const dates = getWeekDates(plannerWeekOffset);
+  const dayMap = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
+  const dayIdx = dayMap[suggestedDay] ?? 0;
+  const dateStr = formatDateISO(dates[dayIdx]);
+
+  pickerContext = { date: dateStr, mealType: 'dinner' };
+  pickRecipe(recipeId);
+
+  if (!plannerMode) togglePlanner();
+  closeSuggestPanel();
+}
+
+// ── Suggest / Recommend ────────────────────────
+async function openSuggestPanel() {
+  const overlay = document.getElementById('suggestOverlay');
+  const body = document.getElementById('suggestCards');
+  const note = document.getElementById('suggestNote');
+  note.style.display = 'none';
+  note.textContent = '';
+  overlay.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+
+  body.innerHTML = Array.from({length: 3}, () =>
+    `<div class="suggest-skeleton"><div class="skel-line medium"></div><div class="skel-line"></div><div class="skel-line short"></div></div>`
+  ).join('');
+
+  if (!syncConfig) {
+    body.innerHTML = `<div class="suggest-error"><div class="icon">⚙️</div><p>Connect to your Cloudflare Worker in sync settings to get suggestions.</p></div>`;
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${syncConfig.url}/recommend`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${syncConfig.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        pantry: pantryItems.map(p => ({ name: p.name, expiration: p.expiration || null })),
+        seasonalProduce,
+        activity: JSON.parse(sessionStorage.getItem('dailyActivity') || 'null'),
+      }),
+    });
+
+    if (resp.status === 429) {
+      body.innerHTML = `<div class="suggest-error"><div class="icon">🌙</div><p>Daily recommendation limit reached. Try again tomorrow!</p></div>`;
+      return;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data = await resp.json();
+    renderSuggestions(data);
+  } catch (e) {
+    console.warn('Recommend failed:', e);
+    body.innerHTML = `<div class="suggest-error"><div class="icon">😕</div><p>Couldn't get suggestions right now. Check your sync connection and try again.</p></div>`;
+  }
+}
+
+function renderSuggestions(data) {
+  const container = document.getElementById('suggestCards');
+  const note = document.getElementById('suggestNote');
+  const suggestions = data.suggestions || [];
+
+  if (data.weekly_note) {
+    note.textContent = data.weekly_note;
+    note.style.display = 'block';
+  }
+
+  if (suggestions.length === 0) {
+    container.innerHTML = `<div class="suggest-error"><div class="icon">🤔</div><p>No suggestions returned. Try adding some pantry items for better results.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = suggestions.map(s => {
+    const recipe = ALL_RECIPES.find(r => r.id === s.recipe_id);
+    const badges = [];
+    if (recipe) {
+      if (recipe.vegan) badges.push('<span class="badge badge-leaf">🌱 Vegan</span>');
+      else if (recipe.vegetarian) badges.push('<span class="badge badge-leaf">🌿 Vegetarian</span>');
+    }
+    if (s.estimated_cost != null) {
+      const costClass = s.estimated_cost === 0 ? ' free' : '';
+      badges.push(`<span class="badge badge-cost${costClass}">~$${s.estimated_cost}</span>`);
+    }
+    const missing = (s.missing_ingredients || []);
+    if (missing.length > 0) {
+      badges.push(`<span class="badge" style="background:#fff3e0;color:#e65100">Need ${missing.length}</span>`);
+    }
+
+    return `<div class="suggest-card">
+      <div class="suggest-card-header">
+        <span class="suggest-card-title" onclick="closeSuggestPanel(); showDetail(${s.recipe_id})">${escHtml(s.title)}</span>
+        ${s.suggested_day ? `<span class="suggest-card-day">${escHtml(s.suggested_day)}</span>` : ''}
+      </div>
+      <div class="suggest-card-reasoning">${escHtml(s.reasoning)}</div>
+      <div class="suggest-card-meta">${badges.join('')}</div>
+      ${missing.length > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Missing: ${missing.map(m => escHtml(m)).join(', ')}</div>` : ''}
+      <div class="suggest-card-actions">
+        <button onclick="closeSuggestPanel(); showDetail(${s.recipe_id})">View recipe</button>
+        <button class="primary" onclick="addToPlanFromSuggest(${s.recipe_id}, '${escHtml(s.suggested_day || '')}')">Add to plan</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function closeSuggestPanel() {
+  document.getElementById('suggestOverlay').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+// ── Utilities ───────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+let renderTimeout;
+function debouncedRender() {
+  clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(render, 150);
+}
+
+// ── Event listeners ─────────────────────────────
+document.getElementById('search').addEventListener('input', debouncedRender);
+document.getElementById('filterSource').addEventListener('change', render);
+document.getElementById('filterCuisine').addEventListener('change', render);
+document.getElementById('filterTime').addEventListener('change', render);
+document.getElementById('filterDifficulty').addEventListener('change', render);
+document.getElementById('filterVegetarian').addEventListener('change', render);
+document.getElementById('filterVegan').addEventListener('change', render);
+document.getElementById('filterGlutenFree').addEventListener('change', render);
+
+document.getElementById('pantryToggle').addEventListener('click', () => {
+  pantryMode = !pantryMode;
+  document.getElementById('pantryToggle').classList.toggle('active', pantryMode);
+  document.getElementById('pantryPanel').classList.toggle('visible', pantryMode);
+  if (pantryMode) { syncPantryIngredients(); renderPantryList(); }
+  render();
+});
+
+document.getElementById('pantryQuickAdd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); quickAddPantryItem(); }
+});
+
+document.getElementById('pantrySearch').addEventListener('input', () => renderPantryList());
+document.getElementById('pantryCatFilter').addEventListener('change', () => renderPantryList());
+
+document.getElementById('pantryEditOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePantryEdit();
+});
+
+document.getElementById('peditName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); savePantryItem(); }
+});
+
+document.querySelectorAll('.pantry-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.pantry-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    pantryFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById('addMissingToReminders').addEventListener('click', addMissingIngredientsToReminders);
+
+document.querySelectorAll('.sort-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.sort-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    currentSort = pill.dataset.sort;
+    render();
+  });
+});
+
+document.getElementById('suggestBtn').addEventListener('click', openSuggestPanel);
+document.getElementById('suggestClose').addEventListener('click', closeSuggestPanel);
+document.getElementById('suggestOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeSuggestPanel();
+});
+
+document.getElementById('planBtn').addEventListener('click', togglePlanner);
+document.getElementById('plannerPrev').addEventListener('click', () => { plannerWeekOffset--; loadMealPlan(); });
+document.getElementById('plannerNext').addEventListener('click', () => { plannerWeekOffset++; loadMealPlan(); });
+document.getElementById('pickerClose').addEventListener('click', closePicker);
+document.getElementById('pickerOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePicker();
+});
+document.getElementById('pickerSearch').addEventListener('input', e => renderPickerList(e.target.value));
+
+document.getElementById('prefsBtn').addEventListener('click', openPrefs);
+document.getElementById('syncSettingsBtn').addEventListener('click', openSyncSettings);
+document.getElementById('syncSettingsOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeSyncSettings();
+});
+
+document.getElementById('ratingSkip').addEventListener('click', skipRating);
+document.getElementById('ratingModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) skipRating();
+});
+
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closePrefs(); closePicker(); closeSuggestPanel(); closeModal(); }
+});
+
+// ── Warm greeting ─────────────────────────────
+function updateGreeting() {
+  const h = new Date().getHours();
+  const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  let greeting;
+  if (h < 12) greeting = 'Good morning';
+  else if (h < 17) greeting = 'Good afternoon';
+  else greeting = 'Good evening';
+  const weekend = [0, 6].includes(new Date().getDay());
+  document.getElementById('topbarTitle').textContent = weekend ? `Happy ${dayName}` : greeting;
+}
+
+// ── Haptics ───────────────────────────────────
+function haptic(type = 'tap') {
+  if (!navigator.vibrate) return;
+  const patterns = {
+    tap: 8,
+    toggle: [5, 30, 5],
+    success: 12,
+    error: [10, 50, 10, 50, 10],
+  };
+  navigator.vibrate(patterns[type] || 8);
+}
+
+document.addEventListener('click', e => {
+  const target = e.target.closest('button, .sort-pill, .picker-item, .planner-add-btn, .planner-meal-card, .star-btn, .pantry-tab');
+  if (target) {
+    target.classList.remove('haptic-tap');
+    void target.offsetWidth;
+    target.classList.add('haptic-tap');
+    haptic('tap');
+  }
+}, true);
+
+// ── Expiring ingredient nudge ─────────────────
+function checkExpiringItems() {
+  if (pantryItems.length === 0) return;
+  const now = new Date();
+  const expiring = pantryItems.filter(i => {
+    if (!i.expiration) return false;
+    const exp = new Date(i.expiration);
+    const days = Math.ceil((exp - now) / 86400000);
+    return days >= 0 && days <= 2;
+  });
+  if (expiring.length > 0) {
+    const names = expiring.slice(0, 3).map(i => i.name).join(', ');
+    const suffix = expiring.length > 3 ? ` and ${expiring.length - 3} more` : '';
+    setTimeout(() => showToast(`${names}${suffix} expiring soon — cook something with them?`, 'warm'), 2000);
+  }
+}
+
+// ── Preferences ───────────────────────────────
+let userPrefs = JSON.parse(localStorage.getItem('userPrefs') || '{}');
+
+function openPrefs() {
+  document.getElementById('prefDiet').value = userPrefs.diet_mode || 'vegetarian-forward';
+  document.getElementById('prefMeat').value = userPrefs.max_meat_per_week || '2';
+  document.getElementById('prefTime').value = userPrefs.max_weeknight_time || '45';
+  document.getElementById('prefsOverlay').classList.add('visible');
+}
+
+function closePrefs() {
+  document.getElementById('prefsOverlay').classList.remove('visible');
+}
+
+async function savePrefs() {
+  userPrefs = {
+    diet_mode: document.getElementById('prefDiet').value,
+    max_meat_per_week: document.getElementById('prefMeat').value,
+    max_weeknight_time: document.getElementById('prefTime').value,
+  };
+  localStorage.setItem('userPrefs', JSON.stringify(userPrefs));
+  closePrefs();
+
+  if (syncConfig) {
+    try {
+      await fetch(`${syncConfig.url}/preferences`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${syncConfig.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPrefs),
+      });
+    } catch (e) { console.warn('Prefs save failed:', e); }
+  }
+  showToast('Preferences saved', 'success');
+  haptic('success');
+}
+
+document.getElementById('prefsOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePrefs();
+});
+
+// ── Init ────────────────────────────────────────
+updateGreeting();
+loadRecipes();
+
+setTimeout(checkExpiringItems, 3000);
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
