@@ -1992,10 +1992,14 @@ function getStoresForIngredient(ingredientText) {
   return [];
 }
 
+function safeColor(c) {
+  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#999';
+}
+
 function renderStoreBadges(stores) {
   if (!stores || stores.length === 0) return '';
   return stores.slice(0, 3).map(s =>
-    `<span class="store-badge" style="background:${s.color}">${escHtml(s.short)}</span>`
+    `<span class="store-badge" style="background:${safeColor(s.color)}">${escHtml(s.short)}</span>`
   ).join('');
 }
 
@@ -2135,10 +2139,10 @@ async function lookupBarcode(code) {
     if (!resp.ok) throw new Error('not found');
     const data = await resp.json();
     if (data.status !== 1 || !data.product) {
-      result.innerHTML = `<p>Product not found for barcode ${code}.</p>
+      result.innerHTML = `<p>Product not found for barcode ${escHtml(code)}.</p>
         <div class="product-actions">
           <button onclick="closeBarcodeScanner()">Cancel</button>
-          <button class="add-btn" onclick="scannerManualAdd('${code}')">Add manually</button>
+          <button class="add-btn" onclick="scannerManualAdd('${escAttr(code)}')">Add manually</button>
         </div>`;
       return;
     }
@@ -2154,13 +2158,13 @@ async function lookupBarcode(code) {
       </div>
       <div class="product-actions">
         <button onclick="closeBarcodeScanner()">Cancel</button>
-        <button class="add-btn" onclick="addScannedProduct('${escHtml(name).replace(/'/g, "\\'")}', '${escHtml(brand).replace(/'/g, "\\'")}', '${escHtml(qty).replace(/'/g, "\\'")}', '${cat}')">Add to pantry</button>
+        <button class="add-btn" onclick="addScannedProduct('${escAttr(name)}', '${escAttr(brand)}', '${escAttr(qty)}', '${escAttr(cat)}')">Add to pantry</button>
       </div>`;
   } catch {
-    result.innerHTML = `<p>Couldn't look up barcode ${code}.</p>
+    result.innerHTML = `<p>Couldn't look up barcode ${escHtml(code)}.</p>
       <div class="product-actions">
         <button onclick="closeBarcodeScanner()">Cancel</button>
-        <button class="add-btn" onclick="scannerManualAdd('${code}')">Add manually</button>
+        <button class="add-btn" onclick="scannerManualAdd('${escAttr(code)}')">Add manually</button>
       </div>`;
   }
 }
@@ -2291,11 +2295,11 @@ function renderPantryList() {
     if (item.amount) details.push(`<span>${escHtml(item.amount)}</span>`);
     if (item.notes) details.push(`<span>${escHtml(item.notes)}</span>`);
 
-    return `<div class="pantry-item" onclick="openPantryEdit('${item.id}')">
+    return `<div class="pantry-item" onclick="openPantryEdit('${escAttr(item.id)}')">
       <div class="pantry-item-info">
         <div class="pantry-item-name">
           ${escHtml(item.name)}
-          ${item.category ? `<span class="pantry-item-cat">${PANTRY_CATEGORIES[item.category] || item.category}</span>` : ''}
+          ${item.category ? `<span class="pantry-item-cat">${escHtml(PANTRY_CATEGORIES[item.category] || item.category)}</span>` : ''}
         </div>
         ${details.length > 0 ? `<div class="pantry-item-details">${details.join('')}</div>` : ''}
       </div>
@@ -2657,7 +2661,7 @@ function renderCard(recipe) {
 
   let missingHtml = '';
   if (pantryMode && status === 'almost' && match) {
-    missingHtml = `<div class="missing-list"><strong>Need:</strong> ${match.missing.slice(0, 3).join(', ')}</div>`;
+    missingHtml = `<div class="missing-list"><strong>Need:</strong> ${match.missing.slice(0, 3).map(m => escHtml(m)).join(', ')}</div>`;
   }
 
   const img = recipe.image_url
@@ -2680,7 +2684,7 @@ function renderCard(recipe) {
 
   const metaParts = [];
   if (recipe.total_time_min) metaParts.push(`<span>⏱ ${recipe.total_time_min} min</span>`);
-  if (recipe.difficulty) metaParts.push(`<span>${recipe.difficulty}</span>`);
+  if (recipe.difficulty) metaParts.push(`<span>${escHtml(recipe.difficulty)}</span>`);
   if (recipe.cuisine) metaParts.push(`<span>${escHtml(recipe.cuisine)}</span>`);
 
   return `
@@ -2752,7 +2756,7 @@ function showDetail(id) {
   if (recipe.total_time_min) meta.push(`<div><dt>Total time</dt><dd>${recipe.total_time_min} min</dd></div>`);
   if (recipe.prep_time_min) meta.push(`<div><dt>Prep</dt><dd>${recipe.prep_time_min} min</dd></div>`);
   if (recipe.cook_time_min) meta.push(`<div><dt>Cook</dt><dd>${recipe.cook_time_min} min</dd></div>`);
-  if (recipe.difficulty) meta.push(`<div><dt>Difficulty</dt><dd>${recipe.difficulty}</dd></div>`);
+  if (recipe.difficulty) meta.push(`<div><dt>Difficulty</dt><dd>${escHtml(recipe.difficulty)}</dd></div>`);
   if (recipe.servings) meta.push(`<div><dt>Servings</dt><dd>${escHtml(recipe.servings)}</dd></div>`);
 
   const ingredients = (recipe.ingredients_raw || [])
@@ -2790,13 +2794,13 @@ function showDetail(id) {
       if (!n && !cal) return '';
       const items = [];
       if (n) {
-        if (n.calories) items.push(`${n.calories} cal`);
-        if (n.protein_g) items.push(`${n.protein_g}g protein`);
-        if (n.carbs_g) items.push(`${n.carbs_g}g carbs`);
-        if (n.fat_g) items.push(`${n.fat_g}g fat`);
-        if (n.fiber_g) items.push(`${n.fiber_g}g fiber`);
+        if (n.calories) items.push(`${Number(n.calories)} cal`);
+        if (n.protein_g) items.push(`${Number(n.protein_g)}g protein`);
+        if (n.carbs_g) items.push(`${Number(n.carbs_g)}g carbs`);
+        if (n.fat_g) items.push(`${Number(n.fat_g)}g fat`);
+        if (n.fiber_g) items.push(`${Number(n.fiber_g)}g fiber`);
       } else if (cal) {
-        items.push(`~${cal} cal (estimated)`);
+        items.push(`~${Number(cal)} cal (estimated)`);
       }
       return `<div style="margin-top:12px;padding:10px;background:#f3e8ff;border-radius:8px;font-size:13px;color:#7c3aed;display:flex;gap:12px;flex-wrap:wrap">${items.map(i => `<span>${i}</span>`).join('')}</div>`;
     })()}
@@ -3397,9 +3401,9 @@ function renderPlanner() {
     const dateNum = d.getDate();
 
     const mealCards = meals.map(m =>
-      `<div class="planner-meal-card" onclick="showDetail(${m.recipe_id})">
+      `<div class="planner-meal-card" onclick="showDetail(${parseInt(m.recipe_id) || 0})">
         <span>${escHtml(m.title)}</span>
-        <button class="remove-meal" onclick="event.stopPropagation(); removeMeal('${dateStr}', '${m.meal_type}')" title="Remove">&times;</button>
+        <button class="remove-meal" onclick="event.stopPropagation(); removeMeal('${escAttr(dateStr)}', '${escAttr(m.meal_type)}')" title="Remove">&times;</button>
       </div>`
     ).join('');
 
@@ -3468,7 +3472,7 @@ function renderShoppingList() {
   for (const item of items) {
     const stores = getStoresForIngredient(item.name);
     const storeKey = stores.length > 0 ? stores[0].name : 'Other';
-    const storeColor = stores.length > 0 ? stores[0].color : '#999';
+    const storeColor = stores.length > 0 ? safeColor(stores[0].color) : '#999';
     if (!grouped.has(storeKey)) grouped.set(storeKey, { color: storeColor, items: [] });
     grouped.get(storeKey).items.push(item);
   }
@@ -3476,7 +3480,7 @@ function renderShoppingList() {
   let html = '';
   for (const [storeName, group] of grouped) {
     html += `<div class="planner-shopping-store">
-      <h4 style="background:${storeName === 'Other' ? 'var(--tag-bg)' : group.color + '20'};color:${storeName === 'Other' ? 'var(--text-muted)' : group.color}">${escHtml(storeName)}</h4>
+      <h4 style="background:${storeName === 'Other' ? 'var(--tag-bg)' : safeColor(group.color) + '20'};color:${storeName === 'Other' ? 'var(--text-muted)' : safeColor(group.color)}">${escHtml(storeName)}</h4>
       <ul class="planner-shopping-list">
         ${group.items.map(it => `<li><span>${escHtml(it.name)}</span>${it.count > 1 ? `<span style="color:var(--text-muted);font-size:11px">x${it.count} recipes</span>` : ''}</li>`).join('')}
       </ul>
@@ -3695,15 +3699,15 @@ function renderSuggestions(data) {
 
     return `<div class="suggest-card">
       <div class="suggest-card-header">
-        <span class="suggest-card-title" onclick="closeSuggestPanel(); showDetail(${s.recipe_id})">${escHtml(s.title)}</span>
+        <span class="suggest-card-title" onclick="closeSuggestPanel(); showDetail(${parseInt(s.recipe_id) || 0})">${escHtml(s.title)}</span>
         ${s.suggested_day ? `<span class="suggest-card-day">${escHtml(s.suggested_day)}</span>` : ''}
       </div>
       <div class="suggest-card-reasoning">${escHtml(s.reasoning)}</div>
       <div class="suggest-card-meta">${badges.join('')}</div>
       ${missing.length > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Missing: ${missing.map(m => escHtml(m)).join(', ')}</div>` : ''}
       <div class="suggest-card-actions">
-        <button onclick="closeSuggestPanel(); showDetail(${s.recipe_id})">View recipe</button>
-        <button class="primary" onclick="addToPlanFromSuggest(${s.recipe_id}, '${escHtml(s.suggested_day || '')}')">Add to plan</button>
+        <button onclick="closeSuggestPanel(); showDetail(${parseInt(s.recipe_id) || 0})">View recipe</button>
+        <button class="primary" onclick="addToPlanFromSuggest(${parseInt(s.recipe_id) || 0}, '${escAttr(s.suggested_day || '')}')">Add to plan</button>
       </div>
     </div>`;
   }).join('');
@@ -3719,7 +3723,11 @@ function escHtml(s) {
   if (!s) return '';
   const d = document.createElement('div');
   d.textContent = String(s);
-  return d.innerHTML;
+  return d.innerHTML.replace(/'/g, '&#39;');
+}
+// Safe attribute value for onclick strings — escapes both HTML entities AND JS string breakout
+function escAttr(s) {
+  return escHtml(s).replace(/\\/g, '\\\\');
 }
 
 let renderTimeout;
