@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#2d5016">
 <title>Recipe Search</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -461,22 +461,6 @@ body {
   color: var(--text-muted);
 }
 .card-meta span { display: flex; align-items: center; gap: 3px; }
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-}
-.tag {
-  padding: 2px 8px;
-  background: var(--tag-bg);
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.tag.veg { background: #e8f5e9; color: #2e7d32; }
-.tag.vegan { background: #e0f2f1; color: #00695c; }
-.tag.gf { background: #fff3e0; color: #e65100; }
 
 /* Pantry match indicator */
 .pantry-badge {
@@ -658,12 +642,18 @@ body {
 }
 .store-group li { padding: 2px 0; }
 
-/* ── Smart badges ────────────────────────────── */
+/* ── Smart badges (overlaid on photo) ────────── */
 .card-badges {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 6px;
+  padding: 6px 8px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.5));
+  z-index: 1;
 }
 .badge {
   display: inline-flex;
@@ -674,32 +664,28 @@ body {
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .badge-cost {
-  background: #f3e8ff;
+  background: rgba(243,232,255,0.85);
   color: #7c3aed;
 }
 .badge-cost.free {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-.badge-leaf {
-  background: #e8f5e9;
+  background: rgba(232,245,233,0.85);
   color: #2e7d32;
 }
 .badge-season {
-  background: #fff8e1;
+  background: rgba(255,248,225,0.85);
   color: #f57f17;
 }
 .badge-cal {
-  background: #e3f2fd;
+  background: rgba(227,242,253,0.85);
   color: #1565c0;
 }
-.badge-score {
-  background: var(--tag-bg);
-  color: var(--text-muted);
-  font-weight: 400;
-  font-size: 10px;
+.badge-meat {
+  background: rgba(255,235,238,0.85);
+  color: #c62828;
 }
 
 /* ── Sort controls ───────────────────────────── */
@@ -842,6 +828,73 @@ body {
 }
 .toast.success { background: #2e7d32; }
 .toast.warm { background: #5d4037; }
+
+/* ── Barcode scanner ─────────────────────────── */
+.scanner-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+  flex-direction: column;
+}
+.scanner-overlay.visible { display: flex; }
+.scanner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+}
+.scanner-header button {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+#scannerVideo {
+  flex: 1;
+  object-fit: cover;
+  width: 100%;
+}
+.scanner-result {
+  padding: 16px;
+  background: var(--card-bg);
+  border-radius: 16px 16px 0 0;
+  min-height: 80px;
+  color: var(--text);
+  font-size: 14px;
+}
+.scanner-result .product-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+.scanner-result .product-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.scanner-result .product-actions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.scanner-result .product-actions .add-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+}
 @keyframes toastIn {
   to { opacity: 1; transform: translateY(0); }
 }
@@ -1396,6 +1449,7 @@ body {
         <input type="text" id="pantryQuickAdd" placeholder="Add ingredient..." autocomplete="off">
         <button onclick="quickAddPantryItem()">Add</button>
         <button onclick="openPantryEdit()" style="background:var(--accent-light);color:var(--accent);border-color:var(--accent)">+ Detail</button>
+        <button onclick="openBarcodeScanner()" style="background:var(--accent-light);color:var(--accent);border-color:var(--accent)" title="Scan barcode">📷</button>
       </div>
       <div class="pantry-filter-bar">
         <input type="text" id="pantrySearch" placeholder="Filter pantry...">
@@ -1594,6 +1648,16 @@ body {
       <button class="save-btn" onclick="saveSyncSettings()">Save & Sync</button>
     </div>
   </div>
+</div>
+
+<!-- Barcode scanner overlay -->
+<div class="scanner-overlay" id="scannerOverlay">
+  <div class="scanner-header">
+    <span>Scan a barcode</span>
+    <button onclick="closeBarcodeScanner()">✕</button>
+  </div>
+  <video id="scannerVideo" autoplay playsinline></video>
+  <div class="scanner-result" id="scannerResult"></div>
 </div>
 
 <!-- Toast container -->
@@ -1939,6 +2003,124 @@ function syncPantryIngredients() {
   computeAllScores();
 }
 
+// ── Barcode scanner ──────────────────────────────
+let scannerStream = null;
+let scannerInterval = null;
+
+async function openBarcodeScanner() {
+  const overlay = document.getElementById('scannerOverlay');
+  const video = document.getElementById('scannerVideo');
+  const result = document.getElementById('scannerResult');
+  result.innerHTML = '<p style="color:var(--text-muted)">Point camera at a barcode...</p>';
+  overlay.classList.add('visible');
+
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = scannerStream;
+
+    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+    scannerInterval = setInterval(async () => {
+      if (video.readyState < 2) return;
+      try {
+        const barcodes = await detector.detect(video);
+        if (barcodes.length > 0) {
+          clearInterval(scannerInterval);
+          haptic('success');
+          lookupBarcode(barcodes[0].rawValue);
+        }
+      } catch {}
+    }, 300);
+  } catch (e) {
+    result.innerHTML = `<p style="color:#c62828">Camera access denied. Please allow camera permissions.</p>`;
+  }
+}
+
+function closeBarcodeScanner() {
+  clearInterval(scannerInterval);
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  document.getElementById('scannerOverlay').classList.remove('visible');
+}
+
+async function lookupBarcode(code) {
+  const result = document.getElementById('scannerResult');
+  result.innerHTML = '<p style="color:var(--text-muted)">Looking up product...</p>';
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,brands,quantity,categories_tags`);
+    if (!resp.ok) throw new Error('not found');
+    const data = await resp.json();
+    if (data.status !== 1 || !data.product) {
+      result.innerHTML = `<p>Product not found for barcode ${code}.</p>
+        <div class="product-actions">
+          <button onclick="closeBarcodeScanner()">Cancel</button>
+          <button class="add-btn" onclick="scannerManualAdd('${code}')">Add manually</button>
+        </div>`;
+      return;
+    }
+    const p = data.product;
+    const name = p.product_name || 'Unknown product';
+    const brand = p.brands || '';
+    const qty = p.quantity || '';
+    const cat = guessCategoryFromTags(p.categories_tags || []);
+    result.innerHTML = `
+      <div class="product-name">${escHtml(name)}</div>
+      <div style="color:var(--text-muted);font-size:13px">
+        ${brand ? escHtml(brand) : ''}${qty ? ' · ' + escHtml(qty) : ''}
+      </div>
+      <div class="product-actions">
+        <button onclick="closeBarcodeScanner()">Cancel</button>
+        <button class="add-btn" onclick="addScannedProduct('${escHtml(name).replace(/'/g, "\\'")}', '${escHtml(brand).replace(/'/g, "\\'")}', '${escHtml(qty).replace(/'/g, "\\'")}', '${cat}')">Add to pantry</button>
+      </div>`;
+  } catch {
+    result.innerHTML = `<p>Couldn't look up barcode ${code}.</p>
+      <div class="product-actions">
+        <button onclick="closeBarcodeScanner()">Cancel</button>
+        <button class="add-btn" onclick="scannerManualAdd('${code}')">Add manually</button>
+      </div>`;
+  }
+}
+
+function guessCategoryFromTags(tags) {
+  const s = tags.join(' ').toLowerCase();
+  if (/dairy|milk|cheese|yogurt|cream|butter/.test(s)) return 'dairy';
+  if (/meat|poultry|chicken|beef|pork|fish|seafood/.test(s)) return 'protein';
+  if (/fruit|vegetable|produce|fresh/.test(s)) return 'produce';
+  if (/grain|bread|cereal|pasta|rice|flour/.test(s)) return 'grains';
+  if (/spice|herb|seasoning/.test(s)) return 'spices';
+  if (/sauce|condiment|oil|vinegar/.test(s)) return 'condiments';
+  if (/canned|preserved/.test(s)) return 'canned';
+  if (/frozen/.test(s)) return 'frozen';
+  if (/baking|sugar|cocoa/.test(s)) return 'baking';
+  return '';
+}
+
+function addScannedProduct(name, brand, amount, category) {
+  pantryItems.push({
+    id: crypto.randomUUID(), name, brand, amount,
+    category: category || guessCategory(name), expiration: '', notes: '',
+  });
+  savePantryToStorage();
+  syncPantryIngredients();
+  renderPantryList();
+  render();
+  debouncedPush();
+  closeBarcodeScanner();
+  showToast(`Added ${name}`, 'success');
+  // Open edit form so user can set expiration
+  const item = pantryItems[pantryItems.length - 1];
+  setTimeout(() => openPantryEdit(item.id), 300);
+}
+
+function scannerManualAdd(code) {
+  closeBarcodeScanner();
+  openPantryEdit();
+  document.getElementById('peditNotes').value = `Barcode: ${code}`;
+}
+
 function quickAddPantryItem() {
   const input = document.getElementById('pantryQuickAdd');
   const name = input.value.trim();
@@ -2267,9 +2449,9 @@ function computeAllScores() {
 
 function formatCost(dollars) {
   if (dollars === null) return null;
-  if (dollars === 0) return '$0';
-  if (dollars < 1) return '<$1';
-  return '~$' + Math.round(dollars);
+  if (dollars === 0) return 'Have all';
+  if (dollars < 1) return 'Shop <$1';
+  return 'Shop ~$' + Math.round(dollars);
 }
 
 function estimateCalories(recipe) {
@@ -2401,17 +2583,11 @@ function renderCard(recipe) {
     ? `<img class="card-image" src="${escHtml(recipe.image_url)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'card-image placeholder\\'>🍽️</div>'">`
     : '<div class="card-image placeholder">🍽️</div>';
 
-  const tags = [];
-  if (recipe.vegan) tags.push('<span class="tag vegan">Vegan</span>');
-  else if (recipe.vegetarian) tags.push('<span class="tag veg">Vegetarian</span>');
-  if (recipe.gluten_free) tags.push('<span class="tag gf">GF</span>');
-  if (recipe.cuisine) tags.push(`<span class="tag">${escHtml(recipe.cuisine)}</span>`);
-
   const score = recipeScores.get(recipe.id);
   const badges = [];
   if (score) {
-    if (recipe.vegan) badges.push('<span class="badge badge-leaf">🌱 Vegan</span>');
-    else if (recipe.vegetarian) badges.push('<span class="badge badge-leaf">🌿 Vegetarian</span>');
+    if (!recipe.vegetarian && !recipe.vegan && !recipe.pescatarian) badges.push('<span class="badge badge-meat">Meat</span>');
+    else if (recipe.pescatarian && !recipe.vegetarian) badges.push('<span class="badge badge-meat">Fish</span>');
     const costStr = formatCost(score.estimatedCost);
     if (costStr !== null) {
       badges.push(`<span class="badge badge-cost${score.estimatedCost === 0 ? ' free' : ''}">${costStr}</span>`);
@@ -2421,23 +2597,65 @@ function renderCard(recipe) {
     if (cal) badges.push(`<span class="badge badge-cal">~${cal} cal</span>`);
   }
 
+  const metaParts = [];
+  if (recipe.total_time_min) metaParts.push(`<span>⏱ ${recipe.total_time_min} min</span>`);
+  if (recipe.difficulty) metaParts.push(`<span>${recipe.difficulty}</span>`);
+  if (recipe.cuisine) metaParts.push(`<span>${escHtml(recipe.cuisine)}</span>`);
+
   return `
     <div class="recipe-card" onclick="showDetail(${recipe.id})">
       ${badge}
-      ${img}
+      <div style="position:relative">
+        ${img}
+        ${badges.length > 0 ? `<div class="card-badges">${badges.join('')}</div>` : ''}
+      </div>
       <div class="card-body">
         <div class="card-source">${escHtml(recipe.source)}</div>
         <div class="card-title">${escHtml(recipe.title)}</div>
-        <div class="card-meta">
-          ${recipe.total_time_min ? `<span>⏱ ${recipe.total_time_min} min</span>` : ''}
-          ${recipe.difficulty ? `<span>${recipe.difficulty}</span>` : ''}
-          ${recipe.servings ? `<span>Serves ${escHtml(recipe.servings)}</span>` : ''}
-        </div>
-        <div class="card-tags">${tags.join('')}</div>
-        ${badges.length > 0 ? `<div class="card-badges">${badges.join('')}</div>` : ''}
+        <div class="card-meta">${metaParts.join('')}</div>
         ${missingHtml}
       </div>
     </div>`;
+}
+
+// ── Sub-recipe detection ────────────────────────
+function normalizeText(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function findSubRecipe(rawIngredient) {
+  const text = normalizeText(rawIngredient);
+  let best = null;
+  let bestLen = 0;
+  for (const r of ALL_RECIPES) {
+    // Strip parenthetical suffixes like "(Vegan)" from title for matching
+    const cleanTitle = r.title.replace(/\s*\([^)]*\)\s*$/, '');
+    const normTitle = normalizeText(cleanTitle);
+    if (normTitle.length < 4) continue;
+    if (text.includes(normTitle) && normTitle.length > bestLen) {
+      best = r;
+      bestLen = normTitle.length;
+    }
+  }
+  return best;
+}
+
+function gatherAllIngredients(recipeId, visited = new Set()) {
+  if (visited.has(recipeId)) return [];
+  visited.add(recipeId);
+  const recipe = ALL_RECIPES.find(r => r.id === recipeId);
+  if (!recipe) return [];
+  const result = [];
+  const rawList = recipe.ingredients_raw || [];
+  for (const raw of rawList) {
+    const sub = findSubRecipe(raw);
+    if (sub && sub.id !== recipeId) {
+      result.push(...gatherAllIngredients(sub.id, visited));
+    } else {
+      result.push(raw);
+    }
+  }
+  return result;
 }
 
 // ── Detail modal ────────────────────────────────
@@ -2458,10 +2676,14 @@ function showDetail(id) {
 
   const ingredients = (recipe.ingredients_raw || [])
     .map(i => {
+      const sub = findSubRecipe(i);
       const stores = getStoresForIngredient(i);
       const badges = renderStoreBadges(stores);
-      if (badges) {
-        return `<li class="ingredient-with-store"><span>${escHtml(i)}</span><span class="stores">${badges}</span></li>`;
+      const subLink = sub && sub.id !== recipe.id
+        ? ` <a href="#" onclick="event.preventDefault();event.stopPropagation();showDetail(${sub.id})" style="color:var(--accent);font-weight:600;text-decoration:underline;font-size:12px">→ view recipe</a>`
+        : '';
+      if (badges || subLink) {
+        return `<li class="ingredient-with-store"><span>${escHtml(i)}${subLink}</span>${badges ? `<span class="stores">${badges}</span>` : ''}</li>`;
       }
       return `<li>${escHtml(i)}</li>`;
     }).join('');
@@ -2527,7 +2749,7 @@ function addToReminders(recipeId) {
 function addIngredientsToReminders(recipeId) {
   const recipe = ALL_RECIPES.find(r => r.id === recipeId);
   if (!recipe) return;
-  const items = recipe.ingredients_raw || [];
+  const items = gatherAllIngredients(recipeId);
   if (items.length === 0) { alert('No ingredients found for this recipe.'); return; }
 
   // Group by store for a smarter shopping list
@@ -3039,6 +3261,10 @@ function togglePlanner() {
   }
 }
 
+function cacheMealPlan() {
+  localStorage.setItem('mealPlanCache', JSON.stringify(mealPlan));
+}
+
 async function loadMealPlan() {
   const dates = getWeekDates(plannerWeekOffset);
   const start = formatDateISO(dates[0]);
@@ -3047,8 +3273,18 @@ async function loadMealPlan() {
   if (syncConfig) {
     try {
       const resp = await fetch(`${syncConfig.url}/meal-plan?start=${start}&end=${end}`);
-      if (resp.ok) mealPlan = await resp.json();
-    } catch (e) { console.warn('Meal plan load failed:', e); }
+      if (resp.ok) {
+        mealPlan = await resp.json();
+        cacheMealPlan();
+      }
+    } catch (e) {
+      console.warn('Meal plan load failed, using cache:', e);
+      const cached = JSON.parse(localStorage.getItem('mealPlanCache') || '[]');
+      mealPlan = cached.filter(m => m.plan_date >= start && m.plan_date <= end);
+    }
+  } else {
+    const cached = JSON.parse(localStorage.getItem('mealPlanCache') || '[]');
+    mealPlan = cached.filter(m => m.plan_date >= start && m.plan_date <= end);
   }
   renderPlanner();
 }
@@ -3188,6 +3424,7 @@ function sendShoppingToReminders() {
 
 async function removeMeal(dateStr, mealType) {
   mealPlan = mealPlan.filter(m => !(m.plan_date === dateStr && m.meal_type === mealType));
+  cacheMealPlan();
   renderPlanner();
 
   if (syncConfig) {
@@ -3272,6 +3509,7 @@ async function pickRecipe(recipeId) {
 
   if (existing >= 0) mealPlan[existing] = entry;
   else mealPlan.push(entry);
+  cacheMealPlan();
   renderPlanner();
 
   if (syncConfig) {

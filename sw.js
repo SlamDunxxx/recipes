@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1777911269';
+const CACHE_VERSION = 'v1778066946';
 const CACHE_NAME = `recipes-${CACHE_VERSION}`;
 const ASSETS = [
   './',
@@ -10,6 +10,15 @@ const ASSETS = [
   './nutrition_estimates.json',
   './manifest.json',
 ];
+
+const NETWORK_FIRST = new Set([
+  'index.html',
+  'recipes.json',
+  'prices.json',
+  'seasons.json',
+  'nutrition_estimates.json',
+  'stores.json',
+]);
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -30,11 +39,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Never cache sync API calls
   if (event.request.url.includes('workers.dev')) return;
 
-  // Network-first for JSON data, cache-first for everything else
-  if (event.request.url.endsWith('recipes.json')) {
+  const url = new URL(event.request.url);
+  const filename = url.pathname.split('/').pop() || 'index.html';
+
+  if (NETWORK_FIRST.has(filename)) {
     event.respondWith(
       fetch(event.request)
         .then(resp => {
