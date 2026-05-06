@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#2d5016">
+<meta name="theme-color" content="#a855a8">
 <title>Recipe Search</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -13,26 +13,28 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #faf9f6;
+  --bg: #fdf2f8;
   --card: #ffffff;
-  --text: #1a1a1a;
-  --text-muted: #6b6b6b;
-  --accent: #2d5016;
-  --accent-light: #e8f0e0;
-  --accent-hover: #3d6b20;
-  --border: #e5e5e5;
-  --tag-bg: #f0f0f0;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-hover: 0 4px 12px rgba(0,0,0,0.12);
-  --radius: 10px;
-  --pantry-ready: #2d5016;
-  --pantry-almost: #b8860b;
-  --pantry-missing: #cc3333;
+  --text: #1a1a2e;
+  --text-muted: #8b7e9b;
+  --accent: #a855a8;
+  --accent-light: #f5e6f5;
+  --accent-hover: #9333a0;
+  --border: #f0d4ee;
+  --tag-bg: #fce7f3;
+  --shadow: 0 1px 4px rgba(168,85,168,0.10);
+  --shadow-hover: 0 6px 20px rgba(168,85,168,0.18);
+  --radius: 14px;
+  --pantry-ready: #a855a8;
+  --pantry-almost: #e879a0;
+  --pantry-missing: #ef4444;
+  --sparkle: #f0abfc;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
+  background: linear-gradient(135deg, #fdf2f8 0%, #fae8ff 50%, #f3e8ff 100%);
+  background-attachment: fixed;
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
@@ -44,13 +46,13 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--accent);
+  background: linear-gradient(135deg, #c084fc 0%, #a855a8 40%, #e879a0 100%);
   color: white;
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 20px 12px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 12px rgba(168,85,168,0.3);
 }
 .topbar h1 {
   font-size: 18px;
@@ -66,15 +68,15 @@ body {
   width: 100%;
   padding: 8px 12px 8px 36px;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
   font-size: 15px;
   background: rgba(255,255,255,0.2);
   color: white;
   outline: none;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 .search-box input::placeholder { color: rgba(255,255,255,0.6); }
-.search-box input:focus { background: rgba(255,255,255,0.3); }
+.search-box input:focus { background: rgba(255,255,255,0.3); box-shadow: 0 0 0 2px rgba(240,171,252,0.5); }
 .search-box::before {
   content: '🔍';
   position: absolute;
@@ -91,19 +93,21 @@ body {
 .btn {
   padding: 7px 14px;
   border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 8px;
-  background: transparent;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.1);
   color: white;
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
+  backdrop-filter: blur(4px);
 }
-.btn:hover { background: rgba(255,255,255,0.15); }
+.btn:hover { background: rgba(255,255,255,0.25); }
 .btn.active {
   background: white;
   color: var(--accent);
   border-color: white;
+  font-weight: 600;
 }
 
 /* ── Layout ──────────────────────────────────── */
@@ -136,12 +140,18 @@ body {
 }
 .filter-group select {
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 14px;
   background: var(--card);
   color: var(--text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.filter-group select:focus {
+  border-color: var(--sparkle);
+  box-shadow: 0 0 0 2px rgba(240,171,252,0.3);
+  outline: none;
 }
 .checkbox-group label {
   display: flex;
@@ -244,8 +254,8 @@ body {
   border-radius: 3px;
   white-space: nowrap;
 }
-.pantry-item-exp.ok { background: #e8f5e9; color: #2e7d32; }
-.pantry-item-exp.soon { background: #fff3e0; color: #e65100; }
+.pantry-item-exp.ok { background: #f3e8ff; color: #7c3aed; }
+.pantry-item-exp.soon { background: #fce7f3; color: #db2777; }
 .pantry-item-exp.expired { background: #ffebee; color: #c62828; }
 .pantry-item-cat {
   font-size: 10px;
@@ -413,16 +423,16 @@ body {
 .recipe-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow);
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: box-shadow 0.3s, transform 0.3s;
   cursor: pointer;
   position: relative;
 }
 .recipe-card:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(168,85,168,0.2), 0 0 0 1px rgba(240,171,252,0.3);
+  transform: translateY(-3px);
 }
 .card-image {
   width: 100%;
@@ -479,7 +489,7 @@ body {
 .missing-list {
   margin-top: 8px;
   padding: 6px 8px;
-  background: #fff8e1;
+  background: #fce7f3;
   border-radius: 6px;
   font-size: 12px;
   color: var(--pantry-almost);
@@ -529,6 +539,11 @@ body {
   cursor: pointer;
   flex-shrink: 0;
   margin-left: 12px;
+  transition: background 0.2s, transform 0.2s;
+}
+.modal-close:hover {
+  background: #f0abfc;
+  transform: rotate(90deg);
 }
 .modal-body { padding: 20px; }
 .modal-meta {
@@ -612,7 +627,7 @@ body {
 .shopping-section {
   margin-top: 12px;
   padding: 12px;
-  background: #f8f8f8;
+  background: var(--accent-light);
   border-radius: 8px;
 }
 .shopping-section h4 {
@@ -672,16 +687,16 @@ body {
   color: #7c3aed;
 }
 .badge-cost.free {
-  background: rgba(232,245,233,0.85);
-  color: #2e7d32;
+  background: rgba(243,232,255,0.85);
+  color: #9333ea;
 }
 .badge-season {
-  background: rgba(255,248,225,0.85);
-  color: #f57f17;
+  background: rgba(252,231,243,0.85);
+  color: #db2777;
 }
 .badge-cal {
-  background: rgba(227,242,253,0.85);
-  color: #1565c0;
+  background: rgba(243,232,255,0.85);
+  color: #7c3aed;
 }
 .badge-meat {
   background: rgba(255,235,238,0.85);
@@ -749,7 +764,7 @@ body {
 .sync-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: #7dff7d;
+  background: #f0abfc;
 }
 .sync-status.error .sync-dot { background: #ff6b6b; }
 
@@ -791,10 +806,10 @@ body {
   align-items: center;
   gap: 8px;
   padding: 10px;
-  background: #e8f5e9;
+  background: var(--accent-light);
   border-radius: 8px;
   font-size: 13px;
-  color: #2e7d32;
+  color: var(--accent);
   margin-bottom: 12px;
 }
 
@@ -813,12 +828,12 @@ body {
 }
 .toast {
   padding: 10px 20px;
-  background: var(--text);
+  background: linear-gradient(135deg, #1a1a2e, #2d1b4e);
   color: white;
-  border-radius: 10px;
+  border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 20px rgba(168,85,168,0.3);
   opacity: 0;
   transform: translateY(12px);
   animation: toastIn 0.3s ease forwards, toastOut 0.3s ease 2.7s forwards;
@@ -826,8 +841,8 @@ body {
   max-width: 90vw;
   text-align: center;
 }
-.toast.success { background: #2e7d32; }
-.toast.warm { background: #5d4037; }
+.toast.success { background: linear-gradient(135deg, #a855a8, #c084fc); }
+.toast.warm { background: linear-gradient(135deg, #e879a0, #f0abfc); }
 
 /* ── Barcode scanner ─────────────────────────── */
 .scanner-overlay {
@@ -1171,7 +1186,7 @@ body {
   align-items: flex-start;
   gap: 4px;
 }
-.planner-meal-card:hover { background: #d4e8c4; }
+.planner-meal-card:hover { background: #f3e8ff; }
 .planner-meal-card .remove-meal {
   border: none;
   background: none;
@@ -1338,6 +1353,72 @@ body {
 .picker-item-meta {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* ── Sparkle effects ─────────────────────────── */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(240,171,252,0); }
+  50% { box-shadow: 0 0 12px rgba(240,171,252,0.4); }
+}
+.sparkle-container {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+}
+.sparkle-star {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--sparkle);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  animation: sparkle 0.6s ease-out forwards;
+  pointer-events: none;
+}
+.topbar h1::after {
+  content: ' ✨';
+  animation: float 2s ease-in-out infinite;
+  display: inline-block;
+}
+.recipe-card {
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.recipe-card:hover {
+  animation: glowPulse 1.5s ease-in-out infinite;
+}
+.sort-pill.active,
+.pantry-tab.active,
+.btn.active {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+.badge {
+  transition: transform 0.15s ease;
+}
+.badge:hover {
+  transform: scale(1.08);
+}
+.modal-btn.primary,
+.form-actions .save-btn,
+.pantry-quick-add button:first-of-type,
+.suggest-card-actions button.primary {
+  background: linear-gradient(135deg, #a855a8, #c084fc) !important;
+  border: none !important;
+  color: white !important;
+}
+.modal-btn.primary:hover,
+.form-actions .save-btn:hover,
+.suggest-card-actions button.primary:hover {
+  background: linear-gradient(135deg, #9333a0, #a855a8) !important;
+}
+.card-image.placeholder {
+  background: linear-gradient(135deg, #fce7f3, #f3e8ff, #fae8ff) !important;
 }
 
 /* ── Haptics + transitions ──────────────────── */
@@ -2717,7 +2798,7 @@ function showDetail(id) {
       } else if (cal) {
         items.push(`~${cal} cal (estimated)`);
       }
-      return `<div style="margin-top:12px;padding:10px;background:#e3f2fd;border-radius:8px;font-size:13px;color:#1565c0;display:flex;gap:12px;flex-wrap:wrap">${items.map(i => `<span>${i}</span>`).join('')}</div>`;
+      return `<div style="margin-top:12px;padding:10px;background:#f3e8ff;border-radius:8px;font-size:13px;color:#7c3aed;display:flex;gap:12px;flex-wrap:wrap">${items.map(i => `<span>${i}</span>`).join('')}</div>`;
     })()}
     <div class="modal-actions" style="flex-wrap:wrap">
       <a class="modal-btn primary" href="${escHtml(recipe.url)}" target="_blank" rel="noopener">View original</a>
@@ -3609,7 +3690,7 @@ function renderSuggestions(data) {
     }
     const missing = (s.missing_ingredients || []);
     if (missing.length > 0) {
-      badges.push(`<span class="badge" style="background:#fff3e0;color:#e65100">Need ${missing.length}</span>`);
+      badges.push(`<span class="badge" style="background:rgba(252,231,243,0.85);color:#db2777">Need ${missing.length}</span>`);
     }
 
     return `<div class="suggest-card">
@@ -3758,13 +3839,32 @@ function haptic(type = 'tap') {
   navigator.vibrate(patterns[type] || 8);
 }
 
+function spawnSparkles(x, y, count = 6) {
+  const colors = ['#f0abfc', '#c084fc', '#e879a0', '#fce7f3', '#a855a8', '#fbbf24'];
+  for (let i = 0; i < count; i++) {
+    const star = document.createElement('div');
+    star.className = 'sparkle-star';
+    star.style.left = (x + (Math.random() - 0.5) * 40) + 'px';
+    star.style.top = (y + (Math.random() - 0.5) * 40) + 'px';
+    star.style.background = colors[Math.floor(Math.random() * colors.length)];
+    star.style.width = (4 + Math.random() * 8) + 'px';
+    star.style.height = star.style.width;
+    star.style.position = 'fixed';
+    star.style.zIndex = '9999';
+    star.style.animationDuration = (0.4 + Math.random() * 0.4) + 's';
+    document.body.appendChild(star);
+    star.addEventListener('animationend', () => star.remove());
+  }
+}
+
 document.addEventListener('click', e => {
-  const target = e.target.closest('button, .sort-pill, .picker-item, .planner-add-btn, .planner-meal-card, .star-btn, .pantry-tab');
+  const target = e.target.closest('button, .sort-pill, .picker-item, .planner-add-btn, .planner-meal-card, .star-btn, .pantry-tab, .recipe-card');
   if (target) {
     target.classList.remove('haptic-tap');
     void target.offsetWidth;
     target.classList.add('haptic-tap');
     haptic('tap');
+    spawnSparkles(e.clientX, e.clientY, target.matches('.star-btn') ? 12 : 5);
   }
 }, true);
 

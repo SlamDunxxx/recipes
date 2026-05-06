@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1778066946';
+const CACHE_VERSION = 'v1778067554';
 const CACHE_NAME = `recipes-${CACHE_VERSION}`;
 const ASSETS = [
   './',
