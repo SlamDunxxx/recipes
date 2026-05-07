@@ -1951,16 +1951,44 @@ let storeData = { stores: [], ingredients: {} };
 let storeMap = {}; // id -> store object
 
 // ── Load data ───────────────────────────────────
+// Try Worker API first (live D1 data), fall back to static files (offline/cache)
+async function fetchWithFallback(apiPath, staticFile) {
+  if (syncConfig?.url) {
+    try {
+      const resp = await fetch(`${syncConfig.url}${apiPath}`, { signal: AbortSignal.timeout(5000) });
+      if (resp.ok) {
+        console.log(`Loaded ${apiPath} from API`);
+        return resp;
+      }
+    } catch (e) {
+      console.warn(`API ${apiPath} unavailable, falling back to static file:`, e.message);
+    }
+  }
+  return fetch(staticFile);
+}
+
 async function loadRecipes() {
   try {
     const [recipesResp, storesResp, pricesResp, seasonsResp, nutritionResp] = await Promise.all([
-      fetch('recipes.json'),
+      fetchWithFallback('/recipes', 'recipes.json'),
       fetch('stores.json'),
-      fetch('prices.json').catch(() => null),
+      fetchWithFallback('/prices', 'prices.json').catch(() => null),
       fetch('seasons.json').catch(() => null),
       fetch('nutrition_estimates.json').catch(() => null),
     ]);
     ALL_RECIPES = await recipesResp.json();
+    // Parse JSON string columns from D1 (they come as strings, not objects)
+    for (const r of ALL_RECIPES) {
+      if (typeof r.ingredients_raw === 'string') {
+        try { r.ingredients_raw = JSON.parse(r.ingredients_raw); } catch { r.ingredients_raw = []; }
+      }
+      if (typeof r.ingredients_normalized === 'string') {
+        try { r.ingredients_normalized = JSON.parse(r.ingredients_normalized); } catch { r.ingredients_normalized = []; }
+      }
+      if (typeof r.nutrition_json === 'string') {
+        try { r.nutrition_json = JSON.parse(r.nutrition_json); } catch { r.nutrition_json = null; }
+      }
+    }
     storeData = await storesResp.json();
     storeMap = {};
     (storeData.stores || []).forEach(s => { storeMap[s.id] = s; });
