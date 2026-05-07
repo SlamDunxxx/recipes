@@ -1992,8 +1992,9 @@ function getDiscoverScore(recipe) {
     if (recipe.total_time_min && recipe.total_time_min <= 45) score += 8;
     // Favor easier recipes for beginners
     if (recipe.difficulty === 'Easy') score += 5;
-    // Add some randomness so it's not the same order every time
-    score += Math.random() * 15;
+    // Deterministic pseudo-random per recipe per day (avoids sort instability)
+    const daySeed = new Date().toDateString().length + new Date().getDate();
+    score += ((recipe.id * 2654435761 + daySeed) % 150) / 10;
   }
 
   // Always factor in health + cost scores from existing scoring
@@ -2226,30 +2227,6 @@ function syncPantryIngredients() {
 // ── Barcode scanner ──────────────────────────────
 let scannerStream = null;
 let scannerInterval = null;
-let _zxingReader = null;
-
-// Lazy-load ZXing for barcode decoding (needed on Safari/iOS which lacks BarcodeDetector)
-async function getZxingReader() {
-  if (_zxingReader) return _zxingReader;
-  if (!window.ZXing) {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://unpkg.com/@nicolo-ribaudo/zxing-wasm@0.1.0/dist/full/zxing_reader.js';
-      s.onload = resolve;
-      s.onerror = () => {
-        // Fallback to older zxing-js
-        const s2 = document.createElement('script');
-        s2.src = 'https://unpkg.com/@nicolo-ribaudo/zxing-wasm@0.1.0/dist/full/zxing_reader.js';
-        s2.onload = resolve;
-        s2.onerror = reject;
-        document.head.appendChild(s2);
-      };
-      document.head.appendChild(s);
-    });
-  }
-  return null; // we'll use canvas-based detection below
-}
-
 const hasBarcodeDetector = typeof BarcodeDetector !== 'undefined';
 
 async function openBarcodeScanner() {
@@ -3547,16 +3524,21 @@ function logMealToHealth(recipe) {
     meal_type: 'dinner',
   };
   const url = `shortcuts://run-shortcut?name=LogMealNutrition&input=text&text=${encodeURIComponent(JSON.stringify(payload))}`;
-  window.location.href = url;
+  // Use window.open to avoid navigating the SPA away, which would abort pending fetches
+  try { window.open(url, '_blank'); } catch {}
 }
 
 function fetchDailyActivity() {
-  window.location.href = 'shortcuts://run-shortcut?name=GetDailyActivity';
+  // Use window.open to avoid navigating the SPA away
+  try { window.open('shortcuts://run-shortcut?name=GetDailyActivity', '_blank'); } catch {}
+  // Attempt to read clipboard after shortcut runs — requires focus + user gesture context
   setTimeout(() => {
+    if (!navigator.clipboard?.readText) return;
     navigator.clipboard.readText().then(text => {
       try {
         const data = JSON.parse(text);
-        if (data.active_cal !== undefined) {
+        // Validate expected fields before storing
+        if (typeof data === 'object' && data !== null && typeof data.active_cal === 'number') {
           sessionStorage.setItem('dailyActivity', JSON.stringify(data));
         }
       } catch {}
@@ -3571,7 +3553,11 @@ function showToast(msg, type = '') {
   toast.className = `toast ${type}`;
   toast.textContent = msg;
   container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3200);
+  toast.addEventListener('animationend', e => {
+    if (e.animationName === 'toastOut') toast.remove();
+  });
+  // Fallback in case animation doesn't fire (e.g. reduced motion)
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
 }
 
 // ── Rating flow ────────────────────────────────
@@ -3582,20 +3568,24 @@ function showRatingPrompt(recipeId, recipeName) {
   const modal = document.getElementById('ratingModal');
   document.getElementById('ratingTitle').textContent = `How was ${recipeName}?`;
   const starRow = document.getElementById('starRow');
-  starRow.innerHTML = [1,2,3,4,5].map(n =>
+  // Clone to strip all old event listeners, then replace
+  const freshRow = starRow.cloneNode(false);
+  starRow.parentNode.replaceChild(freshRow, starRow);
+  freshRow.id = 'starRow';
+  freshRow.innerHTML = [1,2,3,4,5].map(n =>
     `<button class="star-btn empty" data-rating="${n}" onclick="submitRating(${n})">★</button>`
   ).join('');
-  starRow.querySelectorAll('.star-btn').forEach(btn => {
+  freshRow.querySelectorAll('.star-btn').forEach(btn => {
     btn.addEventListener('mouseenter', () => {
       const r = parseInt(btn.dataset.rating);
-      starRow.querySelectorAll('.star-btn').forEach(b => {
+      freshRow.querySelectorAll('.star-btn').forEach(b => {
         b.classList.toggle('filled', parseInt(b.dataset.rating) <= r);
         b.classList.toggle('empty', parseInt(b.dataset.rating) > r);
       });
     });
   });
-  starRow.addEventListener('mouseleave', () => {
-    starRow.querySelectorAll('.star-btn').forEach(b => { b.classList.add('empty'); b.classList.remove('filled'); });
+  freshRow.addEventListener('mouseleave', () => {
+    freshRow.querySelectorAll('.star-btn').forEach(b => { b.classList.add('empty'); b.classList.remove('filled'); });
   });
   modal.classList.add('visible');
 }
@@ -3604,8 +3594,9 @@ async function submitRating(rating) {
   document.getElementById('ratingModal').classList.remove('visible');
   if (!pendingRating || !syncConfig) return;
   try {
+    // PATCH updates the most recent history entry for this recipe instead of creating a duplicate
     await fetch(`${syncConfig.url}/history`, {
-      method: 'POST',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipe_id: pendingRating.recipeId, rating }),
     });
@@ -3788,11 +3779,11 @@ function renderShoppingList() {
 
   for (const pItem of pantryIngredients) {
     needed.delete(pItem);
+    const toRemove = [];
     for (const [key] of needed) {
-      if (key.includes(pItem) || pItem.includes(key)) {
-        needed.delete(key);
-      }
+      if (key.includes(pItem) || pItem.includes(key)) toRemove.push(key);
     }
+    for (const k of toRemove) needed.delete(k);
   }
 
   if (needed.size === 0) {
@@ -4055,15 +4046,14 @@ function closeSuggestPanel() {
 }
 
 // ── Utilities ───────────────────────────────────
+const _escMap = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 function escHtml(s) {
   if (!s) return '';
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML.replace(/'/g, '&#39;');
+  return String(s).replace(/[&<>"']/g, c => _escMap[c]);
 }
-// Safe attribute value for onclick strings — escapes both HTML entities AND JS string breakout
+// Safe value for embedding in onclick='fn("${escAttr(x)}")' — escapes HTML + JS string breakout
 function escAttr(s) {
-  return escHtml(s).replace(/\\/g, '\\\\');
+  return escHtml(s).replace(/\\/g, '\\\\').replace(/\n/g, '\\n');
 }
 
 let renderTimeout;
@@ -4156,7 +4146,18 @@ document.getElementById('modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closePrefs(); closePicker(); closeSuggestPanel(); closeModal(); }
+  if (e.key !== 'Escape') return;
+  // Close only the topmost visible overlay
+  const ratingModal = document.getElementById('ratingModal');
+  if (ratingModal?.classList.contains('visible')) { skipRating(); return; }
+  const suggestPanel = document.getElementById('suggestPanel');
+  if (suggestPanel?.classList.contains('visible')) { closeSuggestPanel(); return; }
+  const pickerOverlay = document.getElementById('pickerOverlay');
+  if (pickerOverlay?.classList.contains('visible')) { closePicker(); return; }
+  const prefsOverlay = document.getElementById('prefsOverlay');
+  if (prefsOverlay?.classList.contains('visible')) { closePrefs(); return; }
+  const modal = document.getElementById('modal');
+  if (modal?.classList.contains('visible')) { closeModal(); return; }
 });
 
 // ── Warm greeting ─────────────────────────────
