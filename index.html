@@ -1612,6 +1612,7 @@ body {
       <label>Sort</label>
       <div class="sort-pills">
         <button class="sort-pill active" data-sort="smart">Smart</button>
+        <button class="sort-pill" data-sort="discover">Discover</button>
         <button class="sort-pill" data-sort="cheapest">Cheapest</button>
         <button class="sort-pill" data-sort="quickest">Quickest</button>
         <button class="sort-pill" data-sort="healthiest">Healthiest</button>
@@ -1835,6 +1836,9 @@ let seasonalProduce = []; // array of ingredient names in season this month
 let nutritionEstimates = {}; // ingredient -> { calories, protein_g, carbs_g, fat_g, fiber_g }
 let currentSort = 'smart';
 let recipeScores = new Map(); // recipeId -> { total, health, cost, ease, pantry, season, estimatedCost }
+let cookHistory = []; // { recipe_id, title, source, cooked_at, rating }
+let cookedCounts = new Map(); // recipeId -> number of times cooked
+let cookProfile = { cuisines: {}, ingredients: {}, sources: {}, totalMeals: 0 }; // learned from history
 
 // ── Sync state ─────────────────────────────────
 const SYNC_DEFAULTS = { url: 'https://recipe-pantry-sync.pbxxg99nbr.workers.dev' };
@@ -1906,6 +1910,107 @@ async function pullPantry() {
     console.warn('Sync pull failed:', e);
     showSyncStatus('Sync failed', true);
   }
+}
+
+async function loadCookHistory() {
+  if (!syncConfig) return;
+  try {
+    const resp = await fetch(`${syncConfig.url}/history?limit=200`);
+    if (!resp.ok) return;
+    cookHistory = await resp.json();
+
+    // Build cook counts
+    cookedCounts.clear();
+    for (const entry of cookHistory) {
+      cookedCounts.set(entry.recipe_id, (cookedCounts.get(entry.recipe_id) || 0) + 1);
+    }
+
+    // Build taste profile from history
+    cookProfile = { cuisines: {}, ingredients: {}, sources: {}, totalMeals: cookHistory.length };
+    for (const entry of cookHistory) {
+      const recipe = ALL_RECIPES.find(r => r.id === entry.recipe_id);
+      if (!recipe) continue;
+
+      // Cuisine affinity
+      if (recipe.cuisine) {
+        cookProfile.cuisines[recipe.cuisine] = (cookProfile.cuisines[recipe.cuisine] || 0) + 1;
+      }
+      // Source affinity
+      cookProfile.sources[recipe.source] = (cookProfile.sources[recipe.source] || 0) + 1;
+      // Ingredient affinity
+      for (const ing of (recipe.ingredients_normalized || [])) {
+        cookProfile.ingredients[ing] = (cookProfile.ingredients[ing] || 0) + 1;
+      }
+    }
+
+    console.log(`Loaded ${cookHistory.length} cook history entries, ${cookedCounts.size} unique recipes`);
+    // Re-render if discover mode is active
+    if (currentSort === 'discover') render();
+  } catch (e) {
+    console.warn('Failed to load cook history:', e);
+  }
+}
+
+function getDiscoverScore(recipe) {
+  const timesCooked = cookedCounts.get(recipe.id) || 0;
+  let score = 0;
+
+  // Heavily boost recipes never cooked (the whole point of Discover)
+  if (timesCooked === 0) score += 50;
+  else if (timesCooked === 1) score += 20;
+  else score -= timesCooked * 5; // penalize frequently repeated recipes
+
+  if (cookProfile.totalMeals > 0) {
+    // Cuisine affinity: boost recipes from cuisines you like
+    if (recipe.cuisine && cookProfile.cuisines[recipe.cuisine]) {
+      score += Math.min(cookProfile.cuisines[recipe.cuisine] * 3, 20);
+    }
+
+    // Ingredient familiarity: score by how many ingredients you've used before
+    const normalized = recipe.ingredients_normalized || [];
+    if (normalized.length > 0) {
+      let familiarCount = 0;
+      for (const ing of normalized) {
+        if (cookProfile.ingredients[ing]) familiarCount++;
+      }
+      const familiarity = familiarCount / normalized.length;
+      // Sweet spot: 30-70% familiar ingredients (some comfort, some novelty)
+      if (familiarity >= 0.3 && familiarity <= 0.7) score += 15;
+      else if (familiarity > 0.7) score += 8;
+      else score += 3; // very unfamiliar — still surface it, just lower
+    }
+
+    // Source affinity: slight boost from sources you cook from
+    if (cookProfile.sources[recipe.source]) {
+      score += Math.min(cookProfile.sources[recipe.source], 5);
+    }
+  } else {
+    // No history yet — use heuristics to surface interesting recipes
+    // Favor recipes with images (more appealing to browse)
+    if (recipe.image_url) score += 10;
+    // Favor recipes with reasonable cook times
+    if (recipe.total_time_min && recipe.total_time_min <= 45) score += 8;
+    // Favor easier recipes for beginners
+    if (recipe.difficulty === 'Easy') score += 5;
+    // Add some randomness so it's not the same order every time
+    score += Math.random() * 15;
+  }
+
+  // Always factor in health + cost scores from existing scoring
+  const existing = recipeScores.get(recipe.id);
+  if (existing) {
+    score += (existing.health || 0) * 0.3;
+    score += (existing.season || 0) * 0.5;
+  }
+
+  // Seasonal boost
+  if (seasonalProduce.length > 0) {
+    const normalized = recipe.ingredients_normalized || [];
+    const seasonalMatch = normalized.filter(i => seasonalProduce.includes(i.toLowerCase())).length;
+    if (seasonalMatch > 0) score += seasonalMatch * 3;
+  }
+
+  return score;
 }
 
 function openSyncSettings() {
@@ -2008,6 +2113,7 @@ async function loadRecipes() {
   computeAllScores();
   render();
   pullPantry();
+  loadCookHistory();
 }
 
 function getStoresForIngredient(ingredientText) {
@@ -2824,6 +2930,8 @@ function render() {
       const sa = recipeScores.get(a.id) || { total: 0, estimatedCost: 999, health: 0 };
       const sb = recipeScores.get(b.id) || { total: 0, estimatedCost: 999, health: 0 };
       switch (currentSort) {
+        case 'discover':
+          return getDiscoverScore(b) - getDiscoverScore(a);
         case 'cheapest':
           return (sa.estimatedCost ?? 999) - (sb.estimatedCost ?? 999);
         case 'quickest':
@@ -2898,6 +3006,11 @@ function renderCard(recipe) {
     if (isInSeason(recipe)) badges.push('<span class="badge badge-season">In season</span>');
     const cal = estimateCalories(recipe);
     if (cal) badges.push(`<span class="badge badge-cal">~${cal} cal</span>`);
+    // In discover mode, show cook count
+    const timesMade = cookedCounts.get(recipe.id) || 0;
+    if (currentSort === 'discover' && timesMade > 0) {
+      badges.push(`<span class="badge badge-cost">Made ${timesMade}x</span>`);
+    }
   }
 
   const metaParts = [];
@@ -3371,6 +3484,8 @@ function iCookedThis(recipeId) {
         showToast(`Cooked ${recipe.title}!`, 'success');
       }
       setTimeout(() => showRatingPrompt(recipeId, recipe.title), 1500);
+      // Refresh local history for discover scoring
+      loadCookHistory();
     }).catch(e => {
       console.warn('History log failed:', e);
       showToast(`Cooked ${recipe.title}!`, 'success');
@@ -3378,6 +3493,9 @@ function iCookedThis(recipeId) {
   } else {
     showToast(`Cooked ${recipe.title}!`, 'success');
   }
+
+  // Update local cook count immediately
+  cookedCounts.set(recipeId, (cookedCounts.get(recipeId) || 0) + 1);
 
   logMealToHealth(recipe);
 }
